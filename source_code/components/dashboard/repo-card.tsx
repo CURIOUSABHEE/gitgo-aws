@@ -14,6 +14,7 @@ interface RepoCardProps {
   language: string
   languageColor: string
   tags: string[]
+  goodFirstIssues?: number
   onCardClick?: (owner: string, repo: string) => void
 }
 
@@ -28,6 +29,7 @@ export function RepoCard({
   language,
   languageColor,
   tags,
+  goodFirstIssues,
   onCardClick,
 }: RepoCardProps) {
   const scoreColor =
@@ -112,6 +114,15 @@ export function RepoCard({
             <GitFork className="h-3.5 w-3.5" />
             {forks.toLocaleString()}
           </span>
+          {/* Always show badge for debugging, even if count is 0 or undefined */}
+          {goodFirstIssues !== undefined && (
+            <Badge 
+              variant="secondary" 
+              className="border-green-500/30 bg-green-500/10 text-green-400 text-xs font-semibold"
+            >
+              {goodFirstIssues} good first {goodFirstIssues === 1 ? 'issue' : 'issues'}
+            </Badge>
+          )}
         </div>
       </div>
     </div>

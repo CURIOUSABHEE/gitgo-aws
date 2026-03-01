@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { PortfolioControls } from "@/components/portfolio/portfolio-controls"
+import { PortfolioEditorPanel } from "@/components/portfolio/portfolio-editor-panel"
 import { SchemaRenderer } from "@/components/portfolio/schema-renderer"
 import { CodeEditorModal } from "@/components/portfolio/code-editor-modal"
 import { useGitHub } from "@/hooks/use-github"
@@ -10,14 +11,15 @@ import { useToast } from "@/hooks/use-toast"
 import { colorThemes, type ColorTheme, type TemplateType } from "@/lib/portfolio-templates"
 import { PortfolioSection } from "@/lib/portfolio-schema"
 import { generatePortfolioHTML, downloadPortfolioHTML } from "@/lib/portfolio-export"
-import { Loader2, Code2 } from "lucide-react"
+import { Loader2, Code2, Settings, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function PortfolioPage() {
   const { profile, loading: profileLoading } = useGitHub()
   const { toast } = useToast()
   
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("modern")
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("minimal")
   const [selectedTheme, setSelectedTheme] = useState<ColorTheme>("midnight")
   const [sections, setSections] = useState<PortfolioSection[]>([])
   const [loading, setLoading] = useState(true)
@@ -295,16 +297,42 @@ export default function PortfolioPage() {
         </div>
 
         {/* Sidebar controls */}
-        <PortfolioControls
-          selectedTemplate={selectedTemplate}
-          selectedTheme={selectedTheme}
-          onTemplateChange={handleTemplateChange}
-          onThemeChange={setSelectedTheme}
-          onGenerate={handleGenerate}
-          onSave={handleSave}
-          onExport={handleExport}
-          generating={generating}
-        />
+        <div className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-card">
+          <Tabs defaultValue="settings" className="flex h-full flex-col">
+            <div className="border-b border-border px-5 py-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="settings" className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </TabsTrigger>
+                <TabsTrigger value="editor" className="gap-2">
+                  <Edit className="h-4 w-4" />
+                  Editor
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="settings" className="flex-1 overflow-auto p-5 m-0">
+              <PortfolioControls
+                selectedTemplate={selectedTemplate}
+                selectedTheme={selectedTheme}
+                onTemplateChange={handleTemplateChange}
+                onThemeChange={setSelectedTheme}
+                onGenerate={handleGenerate}
+                onSave={handleSave}
+                onExport={handleExport}
+                generating={generating}
+              />
+            </TabsContent>
+
+            <TabsContent value="editor" className="flex-1 overflow-auto p-5 m-0">
+              <PortfolioEditorPanel
+                sections={sections}
+                onSectionsChange={setSections}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
 
       {/* Code Editor Modal */}

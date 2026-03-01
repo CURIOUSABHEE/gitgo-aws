@@ -113,9 +113,12 @@ export function ProjectsSection({ data, theme, templateId, editable, onUpdate }:
               className={`group overflow-hidden transition-all hover:scale-105 ${styles.cardStyle}`}
               style={{
                 background: colors.surface,
-                border: `1px solid ${colors.border}`,
+                borderTop: `1px solid ${colors.border}`,
+                borderRight: `1px solid ${colors.border}`,
+                borderBottom: `1px solid ${colors.border}`,
                 borderLeftColor: templateId === "minimal" ? colors.primary : colors.border,
                 borderLeftWidth: templateId === "minimal" ? "4px" : "1px",
+                borderLeftStyle: "solid",
               }}
             >
               {/* Project Thumbnail */}
@@ -193,16 +196,31 @@ export function ProjectsSection({ data, theme, templateId, editable, onUpdate }:
                       {project.forks}
                     </span>
                   </div>
-                  <a
-                    href={project.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-sm transition-colors hover:opacity-80"
-                    style={{ color: colors.primary }}
-                  >
-                    View
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
+                  <div className="flex items-center gap-2">
+                    {project.demo && (
+                      <a
+                        href={project.demo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-sm transition-colors hover:opacity-80"
+                        style={{ color: colors.primary }}
+                        title="View live demo"
+                      >
+                        Demo
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+                    <a
+                      href={project.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm transition-colors hover:opacity-80"
+                      style={{ color: colors.primary }}
+                    >
+                      Code
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

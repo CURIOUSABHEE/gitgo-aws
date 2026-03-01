@@ -24,17 +24,48 @@ function formatTechStack(techStack: TechStack): string {
 }
 
 // ─── Groq Client Pool ────────────────────────────────────────────────────────
-// Three separate clients to distribute TPM load across 3 API keys:
+// Four separate clients to distribute TPM load across 4 API keys:
 //   groqMain  → GROQ_API_KEY   : all architecture analysis + deep route analysis
-//   groq1     → GROQ_API_KEY_1 : file-identification for even-indexed routes (0,2,4…)
-//   groq2     → GROQ_API_KEY_2 : file-identification for odd-indexed routes  (1,3,5…)
+//   groq1     → GROQ_API_KEY_1 : file-identification for routes (index % 3 === 0)
+//   groq2     → GROQ_API_KEY_2 : file-identification for routes (index % 3 === 1)
+//   groq3     → GROQ_API_KEY_3 : file-identification for routes (index % 3 === 2)
 const groqMain = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const groq1 = new Groq({ apiKey: process.env.GROQ_API_KEY_1 });
 const groq2 = new Groq({ apiKey: process.env.GROQ_API_KEY_2 });
+const groq3 = new Groq({ apiKey: process.env.GROQ_API_KEY_3 });
 
-/** Pick groq1 or groq2 based on route index (round-robin). */
+/** Pick groq1, groq2, or groq3 based on route index (round-robin). */
 function pickSecondaryClient(routeIndex: number): Groq {
-    return routeIndex % 2 === 0 ? groq1 : groq2;
+    const remainder = routeIndex % 3;
+    if (remainder === 0) return groq1;
+    if (remainder === 1) return groq2;
+    return groq3;
+}
+
+/**
+ * Wrapper for Groq API calls with rate limit error handling
+ */
+async function callGroqWithErrorHandling(
+    client: Groq,
+    params: Parameters<typeof client.chat.completions.create>[0]
+) {
+    try {
+        return await client.chat.completions.create(params);
+    } catch (error: any) {
+        // Check if it's a rate limit error
+        if (error?.error?.code === "rate_limit_exceeded" || error?.status === 429) {
+            const errorMsg = error?.error?.message || "Rate limit exceeded";
+            console.error("[Groq] Rate limit hit:", errorMsg);
+            
+            throw new Error(
+                `Groq API rate limit exceeded. All API keys have reached their daily token limit. ` +
+                `Please try again later or upgrade your Groq plan at https://console.groq.com/settings/billing`
+            );
+        }
+        
+        // Re-throw other errors
+        throw error;
+    }
 }
 
 // Model to use — llama-3.3-70b-versatile is the best available on Groq's free tier
@@ -222,15 +253,16 @@ ${truncate(keyFilesStr, 18000)}
 
 Return ONLY the JSON object.`;
 
-    const response = await groqMain.chat.completions.create({
+    const response = await callGroqWithErrorHandling(groqMain, {
         model: MODEL,
         max_tokens: MAX_TOKENS,
         temperature: 0.2,
+        stream: false,
         messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
         ],
-    });
+    }) as any;
 
     const text = response.choices[0]?.message?.content ?? "{}";
 
@@ -332,15 +364,16 @@ Rules:
 
 Return ONLY the JSON array.`;
 
-    const response = await groqMain.chat.completions.create({
+    const response = await callGroqWithErrorHandling(groqMain, {
         model: MODEL,
         max_tokens: MAX_TOKENS,
         temperature: 0.2,
+        stream: false,
         messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
         ],
-    });
+    }) as any;
 
     const text = response.choices[0]?.message?.content ?? "[]";
 
@@ -386,15 +419,16 @@ Return a JSON array of up to 10 strings representing the exact file paths.`;
     // Use key1 / key2 alternately to distribute TPM load away from the main key
     const client = pickSecondaryClient(routeIndex);
 
-    const response = await client.chat.completions.create({
+    const response = await callGroqWithErrorHandling(client, {
         model: MODEL,
         max_tokens: 1000,
         temperature: 0.1,
+        stream: false,
         messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
         ],
-    });
+    }) as any;
 
     try {
         let text = response.choices[0]?.message?.content ?? "[]";
@@ -462,15 +496,16 @@ ${truncate(codebaseFiles, 35000)}
 Output exactly the two headers ### FLOW_VISUALIZATION and ### EXECUTION_TRACE followed by their content.`;
 
     // Always use the main key for the heavy analysis to get the best quality
-    const response = await groqMain.chat.completions.create({
+    const response = await callGroqWithErrorHandling(groqMain, {
         model: MODEL,
         max_tokens: MAX_TOKENS,
         temperature: 0.2,
+        stream: false,
         messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
         ],
-    });
+    }) as any;
 
     const text = response.choices[0]?.message?.content ?? "";
 

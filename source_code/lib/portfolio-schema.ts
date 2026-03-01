@@ -211,102 +211,153 @@ export const generatePortfolioContent = async (
   techMap: any,
   templateId: string
 ): Promise<PortfolioSection[]> => {
+  // Validate template exists
   const template = templateConfigs[templateId as keyof typeof templateConfigs]
+  
+  if (!template || !template.defaultSections) {
+    console.error(`[Portfolio] Invalid template ID: ${templateId}. Available templates:`, Object.keys(templateConfigs))
+    // Fallback to minimal template
+    const fallbackTemplate = templateConfigs.minimal
+    const sections: PortfolioSection[] = []
+
+    for (let index = 0; index < fallbackTemplate.defaultSections.length; index++) {
+      const sectionType = fallbackTemplate.defaultSections[index]
+      const section = createDefaultSection(sectionType, index)
+      const populatedSection = await populateSectionData(section, sectionType, githubData, techMap)
+      sections.push(populatedSection)
+    }
+
+    return sections
+  }
+  
   const sections: PortfolioSection[] = []
 
-  template.defaultSections.forEach((sectionType, index) => {
+  for (let index = 0; index < template.defaultSections.length; index++) {
+    const sectionType = template.defaultSections[index]
     const section = createDefaultSection(sectionType, index)
+    const populatedSection = await populateSectionData(section, sectionType, githubData, techMap)
+    sections.push(populatedSection)
+  }
 
-    // Populate with real data
-    switch (sectionType) {
-      case "hero":
-        section.data = {
-          ...section.data,
-          title: githubData.user.name || githubData.user.login,
-          subtitle: githubData.user.bio || "Developer",
-          description: `${githubData.stats.totalRepos} repositories • ${githubData.stats.totalStars} stars earned`,
-        }
-        break
+  return sections
+}
 
-      case "about":
-        section.data = {
-          ...section.data,
-          content: githubData.user.bio || "Passionate developer building amazing projects",
-          highlights: [
-            `${githubData.stats.totalRepos} Public Repositories`,
-            `${githubData.stats.totalStars} Stars Earned`,
-            `${githubData.stats.totalForks} Total Forks`,
-          ],
-        }
-        break
+// Helper function to populate section data
+async function populateSectionData(
+  section: PortfolioSection,
+  sectionType: SectionType,
+  githubData: any,
+  techMap: any
+): Promise<PortfolioSection> {
+  // Populate with real data
+  switch (sectionType) {
+    case "hero":
+      section.data = {
+        ...section.data,
+        title: githubData.user?.name || githubData.user?.login || "Developer",
+        subtitle: githubData.user?.bio || "Developer",
+        description: `${githubData.stats?.totalRepos || 0} repositories • ${githubData.stats?.totalStars || 0} stars earned`,
+      }
+      break
 
-      case "skills":
-        section.data = {
-          ...section.data,
-          skills: techMap?.mostUsed?.slice(0, 12).map((tech: any) => ({
-            name: tech.technology,
-            level: Math.min(100, (tech.totalProjects / githubData.stats.totalRepos) * 100),
-            projects: tech.totalProjects,
-          })) || [],
-        }
-        break
+    case "about":
+      section.data = {
+        ...section.data,
+        content: githubData.user?.bio || "Passionate developer building amazing projects",
+        highlights: [
+          `${githubData.stats?.totalRepos || 0} Public Repositories`,
+          `${githubData.stats?.totalStars || 0} Stars Earned`,
+          `${githubData.stats?.totalForks || 0} Total Forks`,
+        ],
+      }
+      break
 
-      case "projects":
-        section.data = {
-          ...section.data,
-          projects: githubData.repos
-            .sort((a: any, b: any) => b.stargazers_count - a.stargazers_count)
-            .slice(0, 6)
-            .map((repo: any) => ({
+    case "skills":
+      section.data = {
+        ...section.data,
+        skills: techMap?.mostUsed?.slice(0, 12).map((tech: any) => ({
+          name: tech.technology,
+          level: Math.min(100, (tech.totalProjects / (githubData.stats?.totalRepos || 1)) * 100),
+          projects: tech.totalProjects,
+        })) || [],
+      }
+      break
+
+    case "projects":
+      // Fetch deployment info for each repo
+      const projectsWithDeployment = await Promise.all(
+        (githubData.repos || [])
+          .sort((a: any, b: any) => (b.stargazers_count || 0) - (a.stargazers_count || 0))
+          .slice(0, 6)
+          .map(async (repo: any) => {
+            let deploymentUrl = repo.homepage || null
+            
+            // If no homepage, try to fetch from deployments
+            if (!deploymentUrl) {
+              try {
+                // Try to infer deployment URL from common patterns
+                if (repo.has_pages) {
+                  deploymentUrl = `https://${repo.owner?.login}.github.io/${repo.name}`
+                }
+              } catch (error) {
+                console.log(`Could not fetch deployment for ${repo.name}`)
+              }
+            }
+            
+            return {
               id: repo.id,
               name: repo.name,
               description: repo.description || "No description available",
               image: `https://opengraph.githubassets.com/1/${repo.full_name}`,
               thumbnail: repo.owner?.avatar_url || `https://github.com/${repo.owner?.login}.png`,
               tags: [repo.language, ...(repo.topics || [])].filter(Boolean).slice(0, 4),
-              stars: repo.stargazers_count,
-              forks: repo.forks_count,
+              stars: repo.stargazers_count || 0,
+              forks: repo.forks_count || 0,
               url: repo.html_url,
-              demo: repo.homepage,
+              demo: deploymentUrl,
               language: repo.language,
               languageColor: getLanguageColor(repo.language),
-            })),
-        }
-        break
+              hasDeployment: !!deploymentUrl,
+            }
+          })
+      )
+      
+      section.data = {
+        ...section.data,
+        projects: projectsWithDeployment,
+      }
+      break
 
-      case "stats":
-        section.data = {
-          ...section.data,
-          stats: [
-            { label: "Repositories", value: githubData.stats.totalRepos, icon: "repo" },
-            { label: "Stars Earned", value: githubData.stats.totalStars, icon: "star" },
-            { label: "Total Forks", value: githubData.stats.totalForks, icon: "fork" },
-            { label: "Followers", value: githubData.user.followers, icon: "users" },
-          ],
-        }
-        break
+    case "stats":
+      section.data = {
+        ...section.data,
+        stats: [
+          { label: "Repositories", value: githubData.stats?.totalRepos || 0, icon: "repo" },
+          { label: "Stars Earned", value: githubData.stats?.totalStars || 0, icon: "star" },
+          { label: "Total Forks", value: githubData.stats?.totalForks || 0, icon: "fork" },
+          { label: "Followers", value: githubData.user?.followers || 0, icon: "users" },
+        ],
+      }
+      break
 
-      case "contact":
-        section.data = {
-          ...section.data,
-          email: githubData.user.email || "",
-          social: [
-            { platform: "github", url: `https://github.com/${githubData.user.login}`, icon: "github" },
-            githubData.user.blog && { platform: "website", url: githubData.user.blog, icon: "link" },
-            githubData.user.twitter_username && { 
-              platform: "twitter", 
-              url: `https://twitter.com/${githubData.user.twitter_username}`, 
-              icon: "twitter" 
-            },
-          ].filter(Boolean),
-        }
-        break
-    }
+    case "contact":
+      section.data = {
+        ...section.data,
+        email: githubData.user?.email || "",
+        social: [
+          { platform: "github", url: `https://github.com/${githubData.user?.login}`, icon: "github" },
+          githubData.user?.blog && { platform: "website", url: githubData.user.blog, icon: "link" },
+          githubData.user?.twitter_username && { 
+            platform: "twitter", 
+            url: `https://twitter.com/${githubData.user.twitter_username}`, 
+            icon: "twitter" 
+          },
+        ].filter(Boolean),
+      }
+      break
+  }
 
-    sections.push(section)
-  })
-
-  return sections
+  return section
 }
 
 // Language color mapping

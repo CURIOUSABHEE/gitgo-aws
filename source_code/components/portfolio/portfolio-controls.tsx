@@ -104,165 +104,154 @@ export function PortfolioControls({
   }
 
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-card">
-      <div className="border-b border-border px-5 py-4">
-        <h3 className="text-sm font-semibold text-foreground">
-          Portfolio Builder
-        </h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Customize and deploy your portfolio
-        </p>
-      </div>
-
-      <div className="flex-1 overflow-auto p-5">
-        {/* Actions */}
-        <div className="space-y-2">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 border-border text-foreground"
-            onClick={onGenerate}
-            disabled={generating}
-          >
-            {generating ? (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            ) : (
-              <RefreshCw className="h-4 w-4 text-muted-foreground" />
-            )}
-            {generating ? "Generating..." : "Generate from GitHub"}
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 border-border text-foreground"
-            onClick={handleSync}
-            disabled={syncing}
-          >
-            {syncing ? (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            ) : (
-              <Github className="h-4 w-4 text-muted-foreground" />
-            )}
-            {syncing ? "Syncing..." : "Sync Latest Activity"}
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 border-border text-foreground"
-            onClick={onSave}
-          >
+    <>
+      {/* Actions */}
+      <div className="space-y-2">
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2 border-border text-foreground"
+          onClick={onGenerate}
+          disabled={generating}
+        >
+          {generating ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
             <RefreshCw className="h-4 w-4 text-muted-foreground" />
-            Save Changes
-          </Button>
+          )}
+          {generating ? "Generating..." : "Generate from GitHub"}
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2 border-border text-foreground"
+          onClick={handleSync}
+          disabled={syncing}
+        >
+          {syncing ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <Github className="h-4 w-4 text-muted-foreground" />
+          )}
+          {syncing ? "Syncing..." : "Sync Latest Activity"}
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2 border-border text-foreground"
+          onClick={onSave}
+        >
+          <RefreshCw className="h-4 w-4 text-muted-foreground" />
+          Save Changes
+        </Button>
+      </div>
+
+      <Separator className="my-5" />
+
+      {/* Template Selection */}
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <Layout className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Template
+          </span>
         </div>
-
-        <Separator className="my-5" />
-
-        {/* Template Selection */}
-        <div>
-          <div className="mb-3 flex items-center gap-2">
-            <Layout className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Template
-            </span>
-          </div>
-          <div className="space-y-2">
-            {Object.entries(templates).map(([key, template]) => (
-              <button
-                key={key}
-                onClick={() => onTemplateChange(key as TemplateType)}
-                className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                  selectedTemplate === key
-                    ? "border-primary/40 bg-primary/5 text-foreground"
-                    : "border-border text-muted-foreground hover:border-border hover:bg-secondary"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium">{template.name}</div>
-                    <div className="mt-0.5 text-xs opacity-70">{template.description}</div>
-                  </div>
-                  {selectedTemplate === key && (
-                    <Check className="h-4 w-4 text-primary" />
-                  )}
+        <div className="space-y-2">
+          {Object.entries(templates).map(([key, template]) => (
+            <button
+              key={key}
+              onClick={() => onTemplateChange(key as TemplateType)}
+              className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                selectedTemplate === key
+                  ? "border-primary/40 bg-primary/5 text-foreground"
+                  : "border-border text-muted-foreground hover:border-border hover:bg-secondary"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium">{template.name}</div>
+                  <div className="mt-0.5 text-xs opacity-70">{template.description}</div>
                 </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-5" />
-
-        {/* Theme Selection */}
-        <div>
-          <div className="mb-3 flex items-center gap-2">
-            <Palette className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Color Theme
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(colorThemes).map(([key, theme]) => (
-              <button
-                key={key}
-                onClick={() => onThemeChange(key as ColorTheme)}
-                className={`flex items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors ${
-                  selectedTheme === key
-                    ? "border-primary/40 bg-primary/5 text-foreground"
-                    : "border-border text-muted-foreground hover:border-border hover:bg-secondary"
-                }`}
-              >
-                <div 
-                  className="h-5 w-5 rounded-full border border-border" 
-                  style={{ background: theme.colors.primary }}
-                />
-                <span className="flex-1 text-left">{theme.name}</span>
-                {selectedTheme === key && (
-                  <Check className="h-3 w-3 text-primary" />
+                {selectedTemplate === key && (
+                  <Check className="h-4 w-4 text-primary" />
                 )}
-              </button>
-            ))}
-          </div>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
+
+      <Separator className="my-5" />
+
+      {/* Theme Selection */}
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <Palette className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Color Theme
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {Object.entries(colorThemes).map(([key, theme]) => (
+            <button
+              key={key}
+              onClick={() => onThemeChange(key as ColorTheme)}
+              className={`flex items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors ${
+                selectedTheme === key
+                  ? "border-primary/40 bg-primary/5 text-foreground"
+                  : "border-border text-muted-foreground hover:border-border hover:bg-secondary"
+              }`}
+            >
+              <div 
+                className="h-5 w-5 rounded-full border border-border" 
+                style={{ background: theme.colors.primary }}
+              />
+              <span className="flex-1 text-left">{theme.name}</span>
+              {selectedTheme === key && (
+                <Check className="h-3 w-3 text-primary" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Separator className="my-5" />
 
       {/* Bottom Actions */}
-      <div className="border-t border-border p-4">
-        <div className="space-y-2">
-          <Button
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 glow-green"
-            onClick={handleDeploy}
-            disabled={deploying}
-          >
-            {deploying ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deploying...
-              </>
-            ) : (
-              <>
-                <Rocket className="mr-2 h-4 w-4" />
-                Deploy Portfolio
-              </>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full border-border text-foreground"
-            onClick={onExport || handleExport}
-            disabled={exporting}
-          >
-            {exporting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Exporting...
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                Export HTML
-              </>
-            )}
-          </Button>
-        </div>
+      <div className="space-y-2 pt-4">
+        <Button
+          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 glow-green"
+          onClick={handleDeploy}
+          disabled={deploying}
+        >
+          {deploying ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Deploying...
+            </>
+          ) : (
+            <>
+              <Rocket className="mr-2 h-4 w-4" />
+              Deploy Portfolio
+            </>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full border-border text-foreground"
+          onClick={onExport || handleExport}
+          disabled={exporting}
+        >
+          {exporting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              Export HTML
+            </>
+          )}
+        </Button>
       </div>
-    </div>
+    </>
   )
 }

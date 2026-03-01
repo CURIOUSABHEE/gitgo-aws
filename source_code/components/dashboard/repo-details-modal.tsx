@@ -28,9 +28,6 @@ import {
   Code2,
   MessageSquare,
 } from "lucide-react"
-import ReactMarkdown from "react-markdown"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import toast from "react-hot-toast"
 import { formatDistanceToNow } from "date-fns"
 
@@ -100,6 +97,7 @@ export function RepoDetailsModal({
   const [issues, setIssues] = useState<Issue[]>([])
   const [issuesLoading, setIssuesLoading] = useState(false)
   const [issuesError, setIssuesError] = useState<string | null>(null)
+  const [issueFilter, setIssueFilter] = useState<"good-first" | "help-wanted" | "bug">("good-first")
 
   useEffect(() => {
     if (open && owner && repo) {
@@ -113,15 +111,18 @@ export function RepoDetailsModal({
     setIssuesError(null)
     try {
       const repoUrl = `https://github.com/${owner}/${repo}`
+      // Fetch all open issues - we'll filter client-side
       const response = await fetch(
-        `/api/issues?repoUrl=${encodeURIComponent(repoUrl)}&type=issue&sort=created-desc&labels=good first issue,help wanted,bug`
+        `/api/issues?repoUrl=${encodeURIComponent(repoUrl)}&type=issue&sort=created-desc`
       )
       
       if (!response.ok) {
-        throw new Error("Failed to fetch issues")
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to fetch issues")
       }
       
       const data = await response.json()
+      console.log(`[Issues] Fetched ${data.issues?.length || 0} issues for ${owner}/${repo}`)
       setIssues(data.issues || [])
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Failed to load issues"
@@ -131,6 +132,44 @@ export function RepoDetailsModal({
       setIssuesLoading(false)
     }
   }
+
+  // Filter issues based on selected filter - only show beginner-friendly issues
+  const filteredIssues = issues.filter((issue) => {
+    const labelNames = issue.labels.map(l => l.name.toLowerCase())
+    
+    if (issueFilter === "good-first") {
+      // Match the same variations as the API endpoint
+      return labelNames.some(name => 
+        name === "good first issue" ||
+        name === "good-first-issue" ||
+        name === "beginner friendly" ||
+        name === "beginner-friendly" ||
+        name === "help wanted" ||
+        name === "help-wanted"
+      )
+    }
+    if (issueFilter === "help-wanted") {
+      return labelNames.some(name => 
+        name === "help wanted" ||
+        name === "help-wanted"
+      )
+    }
+    if (issueFilter === "bug") {
+      // Only show bugs that are also marked as beginner-friendly
+      const isBug = labelNames.includes("bug")
+      const isBeginner = labelNames.some(name => 
+        name === "good first issue" ||
+        name === "good-first-issue" ||
+        name === "beginner friendly" ||
+        name === "beginner-friendly" ||
+        name === "help wanted" ||
+        name === "help-wanted"
+      )
+      return isBug && isBeginner
+    }
+    
+    return false
+  })
 
   const fetchRepoDetails = async () => {
     setLoading(true)
@@ -190,7 +229,7 @@ export function RepoDetailsModal({
     return tree
   }
 
-  const renderFileTree = (tree: any, level = 0): JSX.Element[] => {
+  const renderFileTree = (tree: any, level = 0): React.ReactElement[] => {
     return Object.keys(tree).map((key) => {
       const isFile = tree[key] === null
       return (
@@ -377,79 +416,62 @@ export function RepoDetailsModal({
               </div>
             </div>
 
-            {/* Tabs for README, File Structure, and Issues */}
-            <Tabs defaultValue="readme" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="readme">
-                  <FileText className="mr-2 h-4 w-4" />
-                  README
+            {/* Tabs for File Structure and Issues */}
+            <Tabs defaultValue="issues" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="issues">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Issues {filteredIssues.length > 0 && `(${filteredIssues.length})`}
                 </TabsTrigger>
                 <TabsTrigger value="structure">
                   <FolderTree className="mr-2 h-4 w-4" />
                   File Structure
                 </TabsTrigger>
-                <TabsTrigger value="issues">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Issues ({details.repository.open_issues_count})
-                </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="readme" className="mt-4">
-                <ScrollArea className="h-[50vh] rounded-lg border border-border bg-background p-4">
-                  {details.readme ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown
-                        components={{
-                          code({ node, inline, className, children, ...props }) {
-                            const match = /language-(\w+)/.exec(className || "")
-                            return !inline && match ? (
-                              <SyntaxHighlighter
-                                style={vscDarkPlus}
-                                language={match[1]}
-                                PreTag="div"
-                                {...props}
-                              >
-                                {String(children).replace(/\n$/, "")}
-                              </SyntaxHighlighter>
-                            ) : (
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            )
-                          },
-                        }}
-                      >
-                        {details.readme}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <p>No README file found</p>
-                    </div>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-
-              <TabsContent value="structure" className="mt-4">
-                <ScrollArea className="h-[50vh] rounded-lg border border-border bg-background p-4">
-                  {details.fileStructure && details.fileStructure.length > 0 ? (
-                    <div className="font-mono text-xs">
-                      {renderFileTree(buildFileTree(details.fileStructure))}
-                      {details.fileStructure.length >= 100 && (
-                        <p className="mt-4 text-muted-foreground">
-                          Showing first 100 files...
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <p>Unable to load file structure</p>
-                    </div>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-
               <TabsContent value="issues" className="mt-4">
+                {/* Filter buttons - only beginner-friendly categories */}
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={issueFilter === "good-first" ? "default" : "outline"}
+                    onClick={() => setIssueFilter("good-first")}
+                  >
+                    Good First Issue ({issues.filter(i => {
+                      const labelNames = i.labels.map(l => l.name.toLowerCase())
+                      return labelNames.some(name => 
+                        (name.includes("good") && name.includes("first")) ||
+                        name.includes("beginner") ||
+                        name === "help wanted" ||
+                        name === "help-wanted"
+                      )
+                    }).length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={issueFilter === "help-wanted" ? "default" : "outline"}
+                    onClick={() => setIssueFilter("help-wanted")}
+                  >
+                    Help Wanted ({issues.filter(i => i.labels.some(l => l.name.toLowerCase().includes("help") && l.name.toLowerCase().includes("wanted"))).length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={issueFilter === "bug" ? "default" : "outline"}
+                    onClick={() => setIssueFilter("bug")}
+                  >
+                    Beginner Bugs ({issues.filter(i => {
+                      const labelNames = i.labels.map(l => l.name.toLowerCase())
+                      const isBug = labelNames.includes("bug")
+                      const isBeginner = labelNames.some(name => 
+                        (name.includes("good") && name.includes("first")) ||
+                        name.includes("beginner") ||
+                        name.includes("help") && name.includes("wanted")
+                      )
+                      return isBug && isBeginner
+                    }).length})
+                  </Button>
+                </div>
+
                 <ScrollArea className="h-[50vh] rounded-lg border border-border bg-background">
                   {issuesLoading ? (
                     <div className="flex items-center justify-center py-12">
@@ -459,13 +481,13 @@ export function RepoDetailsModal({
                     <div className="flex items-center justify-center py-12 text-muted-foreground">
                       <p>{issuesError}</p>
                     </div>
-                  ) : issues.length === 0 ? (
+                  ) : filteredIssues.length === 0 ? (
                     <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <p>No open issues found</p>
+                      <p>No beginner-friendly {issueFilter === "bug" ? "bugs" : "issues"} found</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-border">
-                      {issues.map((issue) => (
+                      {filteredIssues.map((issue) => (
                         <a
                           key={issue.id}
                           href={issue.html_url}
@@ -544,6 +566,25 @@ export function RepoDetailsModal({
                           </div>
                         </a>
                       ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="structure" className="mt-4">
+                <ScrollArea className="h-[50vh] rounded-lg border border-border bg-background p-4">
+                  {details.fileStructure && details.fileStructure.length > 0 ? (
+                    <div className="font-mono text-xs">
+                      {renderFileTree(buildFileTree(details.fileStructure))}
+                      {details.fileStructure.length >= 100 && (
+                        <p className="mt-4 text-muted-foreground">
+                          Showing first 100 files...
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-12 text-muted-foreground">
+                      <p>Unable to load file structure</p>
                     </div>
                   )}
                 </ScrollArea>

@@ -28,7 +28,7 @@ export function RouteCard({
 
   return (
     <Link
-      href={`/analyze-route?repoUrl=${encodedRepoUrl}&route=${encodedPath}&routeIndex=${routeIndex}`}
+      href={`/dashboard/analyze-route?repoUrl=${encodedRepoUrl}&route=${encodedPath}&routeIndex=${routeIndex}`}
       className="group flex flex-col gap-3 rounded-2xl border border-white/8 bg-slate-800/60 p-5 transition-all duration-200 hover:border-indigo-500/40 hover:bg-slate-800"
     >
       {/* Header row */}

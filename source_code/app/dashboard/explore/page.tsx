@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { RepoCard } from "@/components/dashboard/repo-card"
 import { RepoDetailsModal } from "@/components/dashboard/repo-details-modal"
@@ -136,11 +136,42 @@ const exploreRepos = [
 export default function ExplorePage() {
   const [selectedRepo, setSelectedRepo] = useState<{ owner: string; repo: string } | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [reposWithCounts, setReposWithCounts] = useState(exploreRepos)
 
   const handleRepoClick = (owner: string, repo: string) => {
     setSelectedRepo({ owner, repo })
     setModalOpen(true)
   }
+
+  // Fetch real good first issue counts
+  useEffect(() => {
+    const fetchGoodFirstIssueCounts = async () => {
+      console.log('[Explore] Fetching good first issue counts...')
+      const updatedRepos = await Promise.all(
+        exploreRepos.map(async (repo) => {
+          try {
+            const response = await fetch(
+              `/api/github/good-first-issues?owner=${repo.owner}&repo=${repo.name}`
+            )
+            if (response.ok) {
+              const data = await response.json()
+              console.log(`[Explore] ${repo.owner}/${repo.name}: ${data.count} good first issues`)
+              return { ...repo, goodFirstIssues: data.count }
+            } else {
+              console.error(`[Explore] Failed to fetch count for ${repo.owner}/${repo.name}: ${response.status}`)
+            }
+          } catch (error) {
+            console.error(`[Explore] Error fetching count for ${repo.owner}/${repo.name}:`, error)
+          }
+          return repo
+        })
+      )
+      console.log('[Explore] Updated repos with counts:', updatedRepos)
+      setReposWithCounts(updatedRepos)
+    }
+
+    fetchGoodFirstIssueCounts()
+  }, [])
 
   return (
     <div className="flex flex-col">
@@ -190,13 +221,15 @@ export default function ExplorePage() {
 
         {/* Repo grid */}
         <div className="grid gap-4 lg:grid-cols-2">
-          {exploreRepos.map((repo) => (
-            <RepoCard 
-              key={`${repo.owner}/${repo.name}`} 
-              {...repo} 
-              onCardClick={handleRepoClick}
-            />
-          ))}
+          {[...reposWithCounts]
+            .sort((a, b) => (b.goodFirstIssues || 0) - (a.goodFirstIssues || 0))
+            .map((repo) => (
+              <RepoCard 
+                key={`${repo.owner}/${repo.name}`} 
+                {...repo} 
+                onCardClick={handleRepoClick}
+              />
+            ))}
         </div>
 
         {/* Repository Details Modal */}

@@ -42,6 +42,8 @@ const mainNav = [
     icon: Sparkles,
   },
   {
+  },
+  {
     title: "Explore",
     href: "/dashboard/explore",
     icon: Compass,

@@ -84,7 +84,7 @@ const RepoMetadataSchema = new Schema(
         pushedAt: String,
         size: Number,
         isPrivate: Boolean,
-        license: String,
+        license: { type: Schema.Types.Mixed },
     },
     { _id: false }
 );

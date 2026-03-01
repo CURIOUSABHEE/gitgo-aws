@@ -113,8 +113,26 @@ export async function getFileTree(
   repo: string,
   token: string
 ): Promise<TreeItem[]> {
+  // First, get the repository info to find the default branch
+  const repoResponse = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
+      },
+    }
+  )
+
+  let defaultBranch = "main"
+  if (repoResponse.ok) {
+    const repoData = await repoResponse.json()
+    defaultBranch = repoData.default_branch || "main"
+  }
+
+  // Try the default branch first
   const response = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`,
+    `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -124,7 +142,25 @@ export async function getFileTree(
   )
 
   if (!response.ok) {
-    // Try 'master' branch if 'main' fails
+    // Try 'main' if default branch failed and it's not 'main'
+    if (defaultBranch !== "main") {
+      const mainResponse = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+        }
+      )
+      
+      if (mainResponse.ok) {
+        const data = await mainResponse.json()
+        return data.tree || []
+      }
+    }
+
+    // Try 'master' as last resort
     const masterResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`,
       {
@@ -136,7 +172,10 @@ export async function getFileTree(
     )
     
     if (!masterResponse.ok) {
-      throw new Error("Failed to fetch file tree")
+      const errorData = await masterResponse.json().catch(() => ({}))
+      throw new Error(
+        `Failed to fetch file tree for ${owner}/${repo}. Tried branches: ${defaultBranch}, main, master. Error: ${errorData.message || masterResponse.statusText}`
+      )
     }
     
     const data = await masterResponse.json()

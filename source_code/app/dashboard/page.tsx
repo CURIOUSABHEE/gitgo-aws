@@ -8,146 +8,98 @@ import { RepoDetailsModal } from "@/components/dashboard/repo-details-modal"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sparkles } from "lucide-react"
 
-const repos = [
-  {
-    name: "next.js",
-    owner: "vercel",
-    description:
-      "The React Framework for the Web. Used by some of the world's largest companies, Next.js enables you to create full-stack web applications.",
-    stars: 128000,
-    forks: 27200,
-    matchScore: 98,
-    matchReason:
-      'Matches your React and TypeScript skills from Resume. Similar to your "portfolio-site" repo.',
-    language: "TypeScript",
-    languageColor: "#3178c6",
-    tags: ["good-first-issue", "React", "TypeScript", "help-wanted"],
-  },
-  {
-    name: "fastapi",
-    owner: "tiangolo",
-    description:
-      "FastAPI framework, high performance, easy to learn, fast to code, ready for production.",
-    stars: 79000,
-    forks: 6600,
-    matchScore: 94,
-    matchReason:
-      "Matches your Python skill from Resume. REST API experience from your GitHub repos.",
-    language: "Python",
-    languageColor: "#3572A5",
-    tags: ["good-first-issue", "Python", "API", "beginner-friendly"],
-  },
-  {
-    name: "supabase",
-    owner: "supabase",
-    description:
-      "The open source Firebase alternative. Build in a weekend, scale to millions.",
-    stars: 74000,
-    forks: 7100,
-    matchScore: 91,
-    matchReason:
-      'Matches your PostgreSQL and TypeScript skills. Similar to your "SpaceScope" repo.',
-    language: "TypeScript",
-    languageColor: "#3178c6",
-    tags: ["TypeScript", "PostgreSQL", "help-wanted", "documentation"],
-  },
-  {
-    name: "excalidraw",
-    owner: "excalidraw",
-    description:
-      "Virtual whiteboard for sketching hand-drawn like diagrams. Collaborative and end-to-end encrypted.",
-    stars: 87000,
-    forks: 8200,
-    matchScore: 87,
-    matchReason:
-      "Matches your React and TypeScript skills. Great beginner-friendly codebase.",
-    language: "TypeScript",
-    languageColor: "#3178c6",
-    tags: ["good-first-issue", "React", "Canvas", "beginner-friendly"],
-  },
-  {
-    name: "langchain",
-    owner: "langchain-ai",
-    description:
-      "Build context-aware reasoning applications with LangChain's flexible framework.",
-    stars: 98000,
-    forks: 15600,
-    matchScore: 82,
-    matchReason:
-      "Matches your Python skill. Growing AI/ML community with excellent contribution guides.",
-    language: "Python",
-    languageColor: "#3572A5",
-    tags: ["Python", "AI", "good-first-issue", "documentation"],
-  },
-  {
-    name: "cal.com",
-    owner: "calcom",
-    description:
-      "Scheduling infrastructure for absolutely everyone. Open source Calendly alternative.",
-    stars: 33000,
-    forks: 8100,
-    matchScore: 79,
-    matchReason:
-      "Matches your Node.js and React skills. Active community, welcoming maintainers.",
-    language: "TypeScript",
-    languageColor: "#3178c6",
-    tags: ["TypeScript", "React", "Next.js", "help-wanted"],
-  },
-]
-
 function DashboardContent() {
   const searchParams = useSearchParams()
   const filter = searchParams?.get("filter")
   const [userSkills, setUserSkills] = useState<string[]>([])
-  const [filteredRepos, setFilteredRepos] = useState(repos)
+  const [repos, setRepos] = useState<any[]>([])
+  const [filteredRepos, setFilteredRepos] = useState<any[]>([])
   const [selectedRepo, setSelectedRepo] = useState<{ owner: string; repo: string } | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const handleRepoClick = (owner: string, repo: string) => {
     setSelectedRepo({ owner, repo })
     setModalOpen(true)
   }
 
-  // Fetch user skills for filtering
+  // Fetch real repos based on user's tech stack
   useEffect(() => {
-    const fetchSkills = async () => {
+    const fetchRepos = async () => {
+      setLoading(true)
       try {
-        const response = await fetch("/api/github/skills")
+        console.log('[Dashboard] Fetching personalized repos...')
+        const response = await fetch('/api/github/discover-repos')
+        
         if (response.ok) {
           const data = await response.json()
-          const allSkills = [...(data.languages || []), ...(data.skills || [])]
-          setUserSkills(allSkills)
+          console.log(`[Dashboard] Fetched ${data.repos.length} repos`)
+          setRepos(data.repos)
+          setFilteredRepos(data.repos)
+          setUserSkills(data.languages || [])
+          
+          // Fetch good first issue counts for each repo
+          fetchGoodFirstIssueCounts(data.repos)
+        } else {
+          console.error('[Dashboard] Failed to fetch repos:', response.status)
         }
       } catch (error) {
-        console.error("Failed to fetch skills:", error)
+        console.error('[Dashboard] Error fetching repos:', error)
+      } finally {
+        setLoading(false)
       }
     }
 
-    fetchSkills()
+    fetchRepos()
   }, [])
+
+  // Fetch real good first issue counts
+  const fetchGoodFirstIssueCounts = async (reposList: any[]) => {
+    try {
+      const updatedRepos = await Promise.all(
+        reposList.map(async (repo) => {
+          try {
+            const response = await fetch(
+              `/api/github/good-first-issues?owner=${repo.owner}&repo=${repo.name}`
+            )
+            
+            if (response.ok) {
+              const data = await response.json()
+              console.log(`[Dashboard] ${repo.owner}/${repo.name}: ${data.count} good first issues`)
+              return { ...repo, goodFirstIssues: data.count }
+            }
+            return { ...repo, goodFirstIssues: 0 }
+          } catch (error) {
+            console.error(`[Dashboard] Error fetching count for ${repo.owner}/${repo.name}:`, error)
+            return { ...repo, goodFirstIssues: 0 }
+          }
+        })
+      )
+      
+      console.log('[Dashboard] All counts fetched')
+      setRepos(updatedRepos)
+      setFilteredRepos(updatedRepos)
+    } catch (error) {
+      console.error('[Dashboard] Error in fetchGoodFirstIssueCounts:', error)
+    }
+  }
 
   // Apply filter based on query parameter
   useEffect(() => {
-    if (filter === "techstack" && userSkills.length > 0) {
-      // Filter repos that match user's tech stack
-      const filtered = repos.filter((repo) => {
-        const repoTechs = [repo.language, ...repo.tags]
-        return repoTechs.some((tech) =>
-          userSkills.some((skill) =>
-            tech.toLowerCase().includes(skill.toLowerCase()) ||
-            skill.toLowerCase().includes(tech.toLowerCase())
-          )
-        )
-      })
-      setFilteredRepos(filtered)
-    } else if (filter === "trending") {
+    if (filter === "trending") {
       // Sort by stars for trending
       const sorted = [...repos].sort((a, b) => b.stars - a.stars)
       setFilteredRepos(sorted)
+    } else if (filter === "beginner") {
+      // Show repos with most good first issues
+      const sorted = [...repos].sort((a, b) => (b.goodFirstIssues || 0) - (a.goodFirstIssues || 0))
+      setFilteredRepos(sorted)
     } else {
-      setFilteredRepos(repos)
+      // Default: sort by good first issues
+      const sorted = [...repos].sort((a, b) => (b.goodFirstIssues || 0) - (a.goodFirstIssues || 0))
+      setFilteredRepos(sorted)
     }
-  }, [filter, userSkills])
+  }, [filter, repos])
 
   return (
     <div className="flex flex-col">
@@ -162,71 +114,98 @@ function DashboardContent() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-foreground">
-                {filter === "techstack"
-                  ? "Matches Your Tech Stack"
-                  : filter === "trending"
+                {filter === "trending"
                   ? "Trending Projects"
-                  : "Recommended for You"}
+                  : filter === "beginner"
+                  ? "Best for Beginners"
+                  : "Personalized for Your Tech Stack"}
               </h2>
               <p className="text-sm text-muted-foreground">
-                {filter === "techstack"
-                  ? `Showing ${filteredRepos.length} projects matching your skills`
-                  : filter === "trending"
+                {filter === "trending"
                   ? "Most popular open source projects"
-                  : "Personalized matches based on your Resume and GitHub profile"}
+                  : filter === "beginner"
+                  ? `Showing ${filteredRepos.length} projects with the most beginner-friendly issues`
+                  : `Showing ${filteredRepos.length} projects matching ${userSkills.join(", ")}`}
               </p>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-6 bg-secondary">
-            <TabsTrigger value="all">All Matches</TabsTrigger>
-            <TabsTrigger value="high">High Match (90%+)</TabsTrigger>
-            <TabsTrigger value="beginner">Beginner Friendly</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all">
-            <div className="grid gap-4 lg:grid-cols-2">
-              {filteredRepos.map((repo) => (
-                <RepoCard 
-                  key={`${repo.owner}/${repo.name}`} 
-                  {...repo} 
-                  onCardClick={handleRepoClick}
-                />
-              ))}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground">Finding projects matching your tech stack...</p>
             </div>
-          </TabsContent>
+          </div>
+        ) : filteredRepos.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-muted-foreground">No projects found. Try adjusting your filters.</p>
+          </div>
+        ) : (
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="mb-6 bg-secondary">
+              <TabsTrigger value="all">All Matches ({filteredRepos.length})</TabsTrigger>
+              <TabsTrigger value="beginner">
+                Beginner Friendly ({filteredRepos.filter(r => (r.goodFirstIssues || 0) > 0).length})
+              </TabsTrigger>
+              <TabsTrigger value="active">Most Active</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="high">
-            <div className="grid gap-4 lg:grid-cols-2">
-              {filteredRepos
-                .filter((r) => r.matchScore >= 90)
-                .map((repo) => (
-                  <RepoCard 
-                    key={`${repo.owner}/${repo.name}`} 
-                    {...repo} 
-                    onCardClick={handleRepoClick}
-                  />
-                ))}
-            </div>
-          </TabsContent>
+            <TabsContent value="all">
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[...filteredRepos]
+                  .sort((a, b) => (b.goodFirstIssues || 0) - (a.goodFirstIssues || 0))
+                  .map((repo) => (
+                    <RepoCard 
+                      key={`${repo.owner}/${repo.name}`} 
+                      {...repo} 
+                      matchScore={95}
+                      matchReason={`Matches your ${repo.language} skills`}
+                      tags={repo.topics.slice(0, 4)}
+                      onCardClick={handleRepoClick}
+                    />
+                  ))}
+              </div>
+            </TabsContent>
 
-          <TabsContent value="beginner">
-            <div className="grid gap-4 lg:grid-cols-2">
-              {filteredRepos
-                .filter((r) => r.tags.includes("beginner-friendly"))
-                .map((repo) => (
-                  <RepoCard 
-                    key={`${repo.owner}/${repo.name}`} 
-                    {...repo} 
-                    onCardClick={handleRepoClick}
-                  />
-                ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="beginner">
+              <div className="grid gap-4 lg:grid-cols-2">
+                {filteredRepos
+                  .filter((r) => (r.goodFirstIssues || 0) > 0)
+                  .sort((a, b) => (b.goodFirstIssues || 0) - (a.goodFirstIssues || 0))
+                  .map((repo) => (
+                    <RepoCard 
+                      key={`${repo.owner}/${repo.name}`} 
+                      {...repo} 
+                      matchScore={95}
+                      matchReason={`${repo.goodFirstIssues} beginner-friendly issues available`}
+                      tags={repo.topics.slice(0, 4)}
+                      onCardClick={handleRepoClick}
+                    />
+                  ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="active">
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[...filteredRepos]
+                  .sort((a, b) => b.openIssues - a.openIssues)
+                  .map((repo) => (
+                    <RepoCard 
+                      key={`${repo.owner}/${repo.name}`} 
+                      {...repo} 
+                      matchScore={95}
+                      matchReason={`${repo.openIssues} open issues - very active project`}
+                      tags={repo.topics.slice(0, 4)}
+                      onCardClick={handleRepoClick}
+                    />
+                  ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        )}
 
         {/* Repository Details Modal */}
         {selectedRepo && (

@@ -29,6 +29,10 @@ export async function connectDB() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      serverSelectionTimeoutMS: 10000, // 10 second timeout
+      socketTimeoutMS: 45000, // 45 second socket timeout
+      maxPoolSize: 10,
+      minPoolSize: 2,
     }
 
     cached.promise = mongoose.connect(MONGODB_URI, opts)
@@ -36,8 +40,20 @@ export async function connectDB() {
 
   try {
     cached.conn = await cached.promise
-  } catch (e) {
+    console.log("[MongoDB] Connected successfully")
+  } catch (e: any) {
     cached.promise = null
+    console.error("[MongoDB] Connection failed:", e.message)
+    
+    // Provide helpful error messages
+    if (e.message?.includes("ECONNREFUSED") || e.message?.includes("connection") || e.message?.includes("closed")) {
+      console.error("[MongoDB] Possible causes:")
+      console.error("  1. MongoDB Atlas IP whitelist - Add your IP at https://cloud.mongodb.com")
+      console.error("  2. Network/firewall blocking connection")
+      console.error("  3. MongoDB cluster is paused or unavailable")
+      console.error("  4. Invalid connection string")
+    }
+    
     throw e
   }
 
