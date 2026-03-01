@@ -205,15 +205,268 @@ function AnalyzeRouteContent() {
         }
 
         // ── 402 (rate limit exhausted) OR any other LLM failure → subscription gate ──
-        if (response.status === 402 || !response.ok) {
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
           console.error(
-            `[analyze-route] API error ${response.status} for route "${route}":`,
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
             data,
           );
           setRateLimitExceeded(true);
           setResult(null);
           setError(null);
           toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+        // ── 402 (rate limit exhausted) ──
+        if (response.status === 402) {
+          console.error(
+            `[analyze-route] Rate limit exceeded for route "${route}":`,
+            data,
+          );
+          setRateLimitExceeded(true);
+          setResult(null);
+          setError(null);
+          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+          return;
+        }
+
+        // ── 500 or other errors ──
+        if (!response.ok) {
+          const errorMsg = data.error || `API error ${response.status}`;
+          console.error(
+            `[analyze-route] API error ${response.status} for route "${route}":`,
+            data,
+          );
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
           return;
         }
 

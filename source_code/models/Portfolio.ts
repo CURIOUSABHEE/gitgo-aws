@@ -40,8 +40,8 @@ const PortfolioSchema = new Schema<IPortfolio>(
     customDomain: { type: String },
     theme: {
       type: String,
-      enum: ["default", "minimal", "modern", "dark"],
-      default: "default",
+      enum: ["minimal", "creative", "professional", "student"],
+      default: "minimal",
     },
     sections: {
       about: { type: Boolean, default: true },

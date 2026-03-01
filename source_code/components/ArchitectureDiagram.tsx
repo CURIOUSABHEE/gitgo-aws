@@ -21,6 +21,7 @@ import {
   MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   MarkerType,
   BackgroundVariant,
   type Node,
@@ -29,6 +30,9 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import Dagre from "@dagrejs/dagre";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toPng, toSvg } from "html-to-image";
 
 // ─── Public Types ─────────────────────────────────────────────────────────────
 
@@ -147,7 +151,6 @@ const TYPE_LABEL: Record<ArchNodeType, string> = {
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
-// NodeShape alias kept for internal use
 type NodeShape = ArchNodeType;
 
 const NODE_W = 190;
@@ -289,13 +292,69 @@ function Legend() {
   );
 }
 
+// ─── Download Button ──────────────────────────────────────────────────────────
+
+function DownloadButton({ repoName }: { repoName?: string }) {
+  const { getNodes } = useReactFlow();
+
+  const downloadImage = useCallback(async (format: 'png' | 'svg') => {
+    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement;
+    if (!viewport) return;
+
+    try {
+      const fileName = `${repoName || 'architecture'}-diagram.${format}`;
+      
+      const dataUrl = format === 'png' 
+        ? await toPng(viewport, {
+            backgroundColor: '#0b1120',
+            quality: 1,
+            pixelRatio: 2,
+          })
+        : await toSvg(viewport, {
+            backgroundColor: '#0b1120',
+          });
+
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to download diagram:', err);
+    }
+  }, [repoName]);
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 text-xs border-indigo-500/30 hover:bg-indigo-500/10"
+        onClick={() => downloadImage('png')}
+      >
+        <Download className="h-3 w-3 mr-1" />
+        PNG
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 text-xs border-indigo-500/30 hover:bg-indigo-500/10"
+        onClick={() => downloadImage('svg')}
+      >
+        <Download className="h-3 w-3 mr-1" />
+        SVG
+      </Button>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface ArchitectureDiagramProps {
   data: ArchitectureJson;
+  repoName?: string;
 }
 
-function ArchitectureDiagramInner({ data }: ArchitectureDiagramProps) {
+function ArchitectureDiagramInner({ data, repoName }: ArchitectureDiagramProps) {
   const { rfNodes: layoutNodes, rfEdges: layoutEdges } = useMemo(() => {
     try {
       if (!data?.nodes?.length) return { rfNodes: [], rfEdges: [] };
@@ -308,7 +367,6 @@ function ArchitectureDiagramInner({ data }: ArchitectureDiagramProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutEdges);
 
-  // Sync whenever layout recomputes (e.g. data arrives after initial mount)
   useEffect(() => {
     setNodes(layoutNodes);
     setEdges(layoutEdges);
@@ -369,9 +427,7 @@ function ArchitectureDiagramInner({ data }: ArchitectureDiagramProps) {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <span className="rounded-full bg-indigo-500/20 px-2.5 py-0.5 text-xs text-indigo-300 border border-indigo-500/20">
-            React Flow
-          </span>
+          <DownloadButton repoName={repoName} />
           <span className="rounded-full bg-slate-700/60 px-2.5 py-0.5 text-xs text-slate-400">
             {nodes.length}n · {edges.length}e
           </span>
@@ -446,10 +502,10 @@ function ArchitectureDiagramInner({ data }: ArchitectureDiagramProps) {
   );
 }
 
-export function ArchitectureDiagram({ data }: ArchitectureDiagramProps) {
+export function ArchitectureDiagram({ data, repoName }: ArchitectureDiagramProps) {
   return (
     <ReactFlowProvider>
-      <ArchitectureDiagramInner data={data} />
+      <ArchitectureDiagramInner data={data} repoName={repoName} />
     </ReactFlowProvider>
   );
 }

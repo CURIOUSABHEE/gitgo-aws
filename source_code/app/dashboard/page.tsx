@@ -87,15 +87,12 @@ function DashboardContent() {
   // Apply filter based on query parameter
   useEffect(() => {
     if (filter === "trending") {
-      // Sort by stars for trending
       const sorted = [...repos].sort((a, b) => b.stars - a.stars)
       setFilteredRepos(sorted)
     } else if (filter === "beginner") {
-      // Show repos with most good first issues
       const sorted = [...repos].sort((a, b) => (b.goodFirstIssues || 0) - (a.goodFirstIssues || 0))
       setFilteredRepos(sorted)
     } else {
-      // Default: sort by good first issues
       const sorted = [...repos].sort((a, b) => (b.goodFirstIssues || 0) - (a.goodFirstIssues || 0))
       setFilteredRepos(sorted)
     }
@@ -160,10 +157,14 @@ function DashboardContent() {
                   .map((repo) => (
                     <RepoCard 
                       key={`${repo.owner}/${repo.name}`} 
-                      {...repo} 
-                      matchScore={95}
-                      matchReason={`Matches your ${repo.language} skills`}
-                      tags={repo.topics.slice(0, 4)}
+                      name={repo.name}
+                      owner={repo.owner}
+                      description={repo.description}
+                      language={repo.language}
+                      languageColor={repo.languageColor}
+                      tags={repo.topics?.slice(0, 4) || []}
+                      goodFirstIssues={repo.goodFirstIssues}
+                      homepage={repo.homepage}
                       onCardClick={handleRepoClick}
                     />
                   ))}
@@ -178,10 +179,14 @@ function DashboardContent() {
                   .map((repo) => (
                     <RepoCard 
                       key={`${repo.owner}/${repo.name}`} 
-                      {...repo} 
-                      matchScore={95}
-                      matchReason={`${repo.goodFirstIssues} beginner-friendly issues available`}
-                      tags={repo.topics.slice(0, 4)}
+                      name={repo.name}
+                      owner={repo.owner}
+                      description={repo.description}
+                      language={repo.language}
+                      languageColor={repo.languageColor}
+                      tags={repo.topics?.slice(0, 4) || []}
+                      goodFirstIssues={repo.goodFirstIssues}
+                      homepage={repo.homepage}
                       onCardClick={handleRepoClick}
                     />
                   ))}
@@ -195,10 +200,14 @@ function DashboardContent() {
                   .map((repo) => (
                     <RepoCard 
                       key={`${repo.owner}/${repo.name}`} 
-                      {...repo} 
-                      matchScore={95}
-                      matchReason={`${repo.openIssues} open issues - very active project`}
-                      tags={repo.topics.slice(0, 4)}
+                      name={repo.name}
+                      owner={repo.owner}
+                      description={repo.description}
+                      language={repo.language}
+                      languageColor={repo.languageColor}
+                      tags={repo.topics?.slice(0, 4) || []}
+                      goodFirstIssues={repo.goodFirstIssues}
+                      homepage={repo.homepage}
                       onCardClick={handleRepoClick}
                     />
                   ))}

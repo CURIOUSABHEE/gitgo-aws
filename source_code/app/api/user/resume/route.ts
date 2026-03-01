@@ -110,11 +110,12 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
         console.error("Resume upload error:", error?.message || error)
         console.error("Resume upload stack:", error?.stack)
-        return NextResponse.json({ error: "Failed to process resume" }, { status: 500 })
+        
+        // Return specific error message to help user
+        const errorMessage = error?.message || "Failed to process resume"
+        return NextResponse.json({ error: errorMessage }, { status: 500 })
     }
 }
-
-// GET /api/user/resume - Get parsed resume data
 export async function GET() {
     try {
         const session = await getServerSession(authOptions)

@@ -97,12 +97,26 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 export async function parseResume(pdfBuffer: Buffer): Promise<ParsedResume> {
     // Step 1: Extract raw text from PDF
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse/lib/pdf-parse")
-    const pdfData = await pdfParse(pdfBuffer)
-    const rawText: string = pdfData.text
+    const pdfParse = require("pdf-parse")
+    
+    let pdfData: any
+    let rawText: string
+    
+    try {
+        pdfData = await pdfParse(pdfBuffer)
+        rawText = pdfData.text || ""
+    } catch (pdfError: any) {
+        console.error("PDF parsing error:", pdfError)
+        throw new Error("Failed to read PDF file. The file may be corrupted, password-protected, or in an unsupported format.")
+    }
 
-    if (!rawText || rawText.trim().length < 20) {
-        throw new Error("Could not extract meaningful text from the PDF")
+    // Check if we got meaningful text
+    const cleanText = rawText.trim()
+    if (!cleanText || cleanText.length < 20) {
+        throw new Error(
+            "Could not extract text from the PDF. This may be an image-based PDF (scanned document). " +
+            "Please use a text-based PDF or convert your scanned PDF to text using OCR software."
+        )
     }
 
     // Step 2: Send to Groq API for intelligent parsing

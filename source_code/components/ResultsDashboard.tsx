@@ -152,6 +152,7 @@ export function ResultsDashboard({
       {/* ── Architecture Diagram ── */}
       {llmAnalysis && (
         <ArchitectureDiagram
+          repoName={metadata?.name}
           data={llmAnalysis.architectureJson ?? { nodes: [], edges: [] }}
         />
       )}

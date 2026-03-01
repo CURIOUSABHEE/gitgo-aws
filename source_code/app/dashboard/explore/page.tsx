@@ -24,112 +24,80 @@ const exploreRepos = [
     owner: "facebook",
     description:
       "The library for web and native user interfaces. React lets you build user interfaces out of individual pieces called components.",
-    stars: 231000,
-    forks: 47200,
-    matchScore: 88,
-    matchReason:
-      "Core library for your React skills. Many good-first-issues available for documentation and testing.",
     language: "JavaScript",
     languageColor: "#f1e05a",
-    tags: ["good-first-issue", "React", "JavaScript", "help-wanted"],
+    tags: ["React", "JavaScript", "UI", "Frontend"],
+    homepage: "https://react.dev",
   },
   {
     name: "deno",
     owner: "denoland",
     description:
       "A modern runtime for JavaScript and TypeScript built on V8, Rust, and Tokio.",
-    stars: 97000,
-    forks: 5400,
-    matchScore: 76,
-    matchReason:
-      "Aligns with your TypeScript experience. Great for learning runtime internals.",
     language: "Rust",
     languageColor: "#dea584",
-    tags: ["TypeScript", "Rust", "runtime", "good-first-issue"],
+    tags: ["TypeScript", "Rust", "Runtime"],
+    homepage: "https://deno.com",
   },
   {
     name: "shadcn-ui",
     owner: "shadcn-ui",
     description:
       "Beautifully designed components built with Radix UI and Tailwind CSS. Copy and paste into your apps.",
-    stars: 76000,
-    forks: 4800,
-    matchScore: 95,
-    matchReason:
-      "Perfect match for your React and TypeScript skills. Component-focused contributions are great for portfolios.",
     language: "TypeScript",
     languageColor: "#3178c6",
-    tags: ["React", "TypeScript", "UI", "beginner-friendly"],
+    tags: ["React", "TypeScript", "UI", "Components"],
+    homepage: "https://ui.shadcn.com",
   },
   {
     name: "tensorflow",
     owner: "tensorflow",
     description:
       "An open source machine learning framework for everyone. Build and deploy ML powered applications.",
-    stars: 187000,
-    forks: 74200,
-    matchScore: 68,
-    matchReason:
-      "Matches your Python skill. Large community with extensive contributor documentation.",
     language: "Python",
     languageColor: "#3572A5",
-    tags: ["Python", "AI", "ML", "documentation"],
+    tags: ["Python", "AI", "ML", "Deep Learning"],
+    homepage: "https://www.tensorflow.org",
   },
   {
     name: "prisma",
     owner: "prisma",
     description:
       "Next-generation ORM for Node.js and TypeScript. Intuitive data model, automated migrations, type-safety.",
-    stars: 40000,
-    forks: 1600,
-    matchScore: 90,
-    matchReason:
-      "Matches your Node.js and TypeScript skills. Database-focused issues align with your PostgreSQL experience.",
     language: "TypeScript",
     languageColor: "#3178c6",
-    tags: ["TypeScript", "Node.js", "PostgreSQL", "good-first-issue"],
+    tags: ["TypeScript", "Node.js", "Database", "ORM"],
+    homepage: "https://www.prisma.io",
   },
   {
     name: "flutter",
     owner: "flutter",
     description:
       "Flutter makes it easy and fast to build beautiful apps for mobile and beyond.",
-    stars: 167000,
-    forks: 27800,
-    matchScore: 54,
-    matchReason:
-      "New technology area for you. Could broaden your skill set with mobile development.",
     language: "Dart",
     languageColor: "#00B4AB",
-    tags: ["Dart", "mobile", "UI", "beginner-friendly"],
+    tags: ["Dart", "Mobile", "UI", "Cross-platform"],
+    homepage: "https://flutter.dev",
   },
   {
     name: "astro",
     owner: "withastro",
     description:
       "The web framework for content-driven websites. Astro powers the world's fastest websites and apps.",
-    stars: 48000,
-    forks: 2500,
-    matchScore: 85,
-    matchReason:
-      "Aligns with your frontend and TypeScript skills. Active contributor community with mentoring.",
     language: "TypeScript",
     languageColor: "#3178c6",
-    tags: ["TypeScript", "frontend", "SSG", "help-wanted"],
+    tags: ["TypeScript", "Frontend", "SSG", "Framework"],
+    homepage: "https://astro.build",
   },
   {
     name: "huggingface_hub",
     owner: "huggingface",
     description:
       "The official Python client for the Hugging Face Hub. Download and publish models, datasets and more.",
-    stars: 21000,
-    forks: 5200,
-    matchScore: 72,
-    matchReason:
-      "Matches your Python skill. Growing AI ecosystem with welcoming community.",
     language: "Python",
     languageColor: "#3572A5",
-    tags: ["Python", "AI", "ML", "good-first-issue"],
+    tags: ["Python", "AI", "ML", "NLP"],
+    homepage: "https://huggingface.co",
   },
 ]
 
@@ -189,7 +157,7 @@ export default function ExplorePage() {
                 Explore Open Source
               </h2>
               <p className="text-sm text-muted-foreground">
-                Discover repos across the ecosystem, ranked by your skill match
+                Discover popular repositories with good first issues
               </p>
             </div>
           </div>
@@ -220,13 +188,20 @@ export default function ExplorePage() {
         </div>
 
         {/* Repo grid */}
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           {[...reposWithCounts]
             .sort((a, b) => (b.goodFirstIssues || 0) - (a.goodFirstIssues || 0))
             .map((repo) => (
               <RepoCard 
                 key={`${repo.owner}/${repo.name}`} 
-                {...repo} 
+                name={repo.name}
+                owner={repo.owner}
+                description={repo.description}
+                language={repo.language}
+                languageColor={repo.languageColor}
+                tags={repo.tags}
+                goodFirstIssues={repo.goodFirstIssues}
+                homepage={repo.homepage}
                 onCardClick={handleRepoClick}
               />
             ))}
