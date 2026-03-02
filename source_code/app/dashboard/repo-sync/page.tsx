@@ -88,7 +88,7 @@ export default function RepoSyncPage() {
         <div>
           <h1 className="text-3xl font-bold">Repository Sync Pipeline</h1>
           <p className="text-muted-foreground mt-1">
-            Manage contributor-friendly repository database
+            Manage contributor-friendly repository database for the Explore page
           </p>
         </div>
         <div className="flex gap-2">
@@ -129,6 +129,25 @@ export default function RepoSyncPage() {
           </Button>
         </div>
       </div>
+
+      {/* Info Banner */}
+      <Card className="border-blue-500/50 bg-blue-500/10">
+        <CardContent className="pt-6">
+          <div className="flex gap-3">
+            <div className="flex-shrink-0">
+              <Database className="h-5 w-5 text-blue-500" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">About This Database</p>
+              <p className="text-xs text-muted-foreground">
+                This shows stats for the curated open-source repository database used in the Explore page. 
+                These are NOT your personal repos - they're contributor-friendly projects from across GitHub. 
+                Click "Sync GitHub" to populate the database with repositories that have good first issues.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {loading && !stats ? (
         <div className="flex items-center justify-center h-64">

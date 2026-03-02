@@ -14,10 +14,19 @@ export async function POST(req: NextRequest) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions)
-    if (!session?.accessToken) {
+    if (!session?.user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      )
+    }
+
+    // Use GITHUB_TOKEN from env for better rate limits and permissions
+    const githubToken = process.env.GITHUB_TOKEN
+    if (!githubToken) {
+      return NextResponse.json(
+        { error: "GITHUB_TOKEN not configured" },
+        { status: 500 }
       )
     }
 
@@ -34,9 +43,9 @@ export async function POST(req: NextRequest) {
 
     // Step 1: Fetch repos from GitHub
     console.log(`[Sync] Step 1: Fetching repos from GitHub`)
-    const fetcher = new RepoFetcher(session.accessToken)
+    const fetcher = new RepoFetcher(githubToken)
     let repos = await fetcher.fetchRepos(maxRepos)
-    
+
     const rateLimitStatus = fetcher.getRateLimitStatus()
     console.log(`[Sync] Fetched ${repos.length} repos from GitHub`)
     console.log(`[Sync] Rate limit: ${rateLimitStatus.remaining} remaining, resets at ${rateLimitStatus.reset}`)
@@ -44,7 +53,7 @@ export async function POST(req: NextRequest) {
     // Step 1.5: Fetch from external sources (optional)
     if (includeExternalSources) {
       console.log(`[Sync] Step 1.5: Fetching from external sources`)
-      const externalRepos = await fetchFromAllExternalSources(session.accessToken)
+      const externalRepos = await fetchFromAllExternalSources(githubToken)
       repos = [...repos, ...externalRepos]
       console.log(`[Sync] Total repos after external sources: ${repos.length}`)
     }
