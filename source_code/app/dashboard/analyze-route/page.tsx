@@ -195,29 +195,44 @@ function AnalyzeRouteContent() {
         if (forceReload) url.searchParams.set("forceReload", "true");
 
         const response = await fetch(url.toString());
-        const data = await response.json();
-
-        // ── 401 / 404: real errors, show message not subscription gate ──
-        if (response.status === 401 || response.status === 404) {
-          const errorMsg = data.error || "Request failed.";
+        
+        // Check if response is ok before parsing JSON
+        if (!response.ok) {
+          let errorMsg = `Request failed with status ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.error || errorMsg;
+          } catch {
+            // If JSON parsing fails, use the status text
+            errorMsg = response.statusText || errorMsg;
+          }
+          
+          // Handle specific status codes
+          if (response.status === 401 || response.status === 404) {
+            setError(errorMsg);
+            toast.error(errorMsg, { id: toastId });
+            return;
+          }
+          
+          if (response.status === 402) {
+            console.error(
+              `[analyze-route] Rate limit exceeded for route "${route}":`,
+              errorMsg,
+            );
+            setRateLimitExceeded(true);
+            setResult(null);
+            setError(null);
+            toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
+            return;
+          }
+          
+          // Other errors
           setError(errorMsg);
           toast.error(errorMsg, { id: toastId });
           return;
         }
-
-        // ── 402 (rate limit exhausted) OR any other LLM failure → subscription gate ──
-        // ── 402 (rate limit exhausted) ──
-        if (response.status === 402) {
-          console.error(
-            `[analyze-route] Rate limit exceeded for route "${route}":`,
-            data,
-          );
-          setRateLimitExceeded(true);
-          setResult(null);
-          setError(null);
-          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
-          return;
-        }
+        
+        const data = await response.json();
 
         // ── 500 or other errors ──
         if (!response.ok) {

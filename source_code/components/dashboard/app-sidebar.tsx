@@ -33,6 +33,12 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useGitHub } from "@/hooks/use-github"
 
@@ -60,12 +66,6 @@ const mainNav = [
     href: "/dashboard/gsoc",
     icon: Award,
     description: "Discover Google Summer of Code organizations and opportunities",
-  },
-  {
-    title: "Repo Sync",
-    href: "/dashboard/repo-sync",
-    icon: Database,
-    description: "Manage the curated repository database for Explore page",
   },
   {
     title: "My Projects",
@@ -157,24 +157,27 @@ export function AppSidebar() {
             <SidebarMenu>
               {mainNav.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
-                    tooltip={{
-                      children: (
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
+                        >
+                          <Link href={item.href}>
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
                         <div className="space-y-1">
                           <p className="font-semibold">{item.title}</p>
                           <p className="text-xs text-muted-foreground">{item.description}</p>
                         </div>
-                      ),
-                      side: "right",
-                    }}
-                  >
-                    <Link href={item.href}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -189,23 +192,24 @@ export function AppSidebar() {
             <SidebarMenu>
               {filters.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    tooltip={{
-                      children: (
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <SidebarMenuButton asChild>
+                          <Link href={item.href}>
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
                         <div className="space-y-1">
                           <p className="font-semibold">{item.title}</p>
                           <p className="text-xs text-muted-foreground">{item.description}</p>
                         </div>
-                      ),
-                      side: "right",
-                    }}
-                  >
-                    <Link href={item.href}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -240,24 +244,27 @@ export function AppSidebar() {
       <SidebarFooter className="p-3">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton 
-              asChild 
-              isActive={pathname === "/dashboard/settings"} 
-              tooltip={{
-                children: (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={pathname === "/dashboard/settings"}
+                  >
+                    <Link href="/dashboard/settings">
+                      <Settings className="h-4 w-4" />
+                      <span>Settings</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs">
                   <div className="space-y-1">
                     <p className="font-semibold">Settings</p>
                     <p className="text-xs text-muted-foreground">Configure profile, integrations, and preferences</p>
                   </div>
-                ),
-                side: "right",
-              }}
-            >
-              <Link href="/dashboard/settings">
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarSeparator />

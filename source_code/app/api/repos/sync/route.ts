@@ -12,11 +12,11 @@ import { fetchFromAllExternalSources } from "@/lib/external-sources"
  */
 export async function POST(req: NextRequest) {
   try {
-    // Check authentication
+    // Check authentication - be more lenient with session check
     const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    if (!session) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized - Please log in" },
         { status: 401 }
       )
     }

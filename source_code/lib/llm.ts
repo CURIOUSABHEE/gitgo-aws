@@ -143,124 +143,108 @@ export async function analyzeArchitecture(
         .map((f) => `\n\n=== FILE: ${f.path} ===\n${f.content}`)
         .join("");
 
-    const systemPrompt = `You are a senior software architect specializing in production-level system design. Your job is to analyze a GitHub project and return a DETAILED, PRODUCTION-READY architecture diagram as a strict JSON object.
+    const systemPrompt = `You are a senior software architect specializing in analyzing codebases and creating accurate visual representations of their architecture.
+
+Your job is to analyze a GitHub repository and produce a clear, accurate architecture diagram based on what you actually find in the code.
+
+CRITICAL RULES:
+- NEVER hallucinate files, services, or infrastructure that don't exist
+- Only describe what is evident from the provided code and file structure
+- If you can only see partial code, work with what's available and note limitations
+- Prefer clarity over completeness
+- Be honest about what you don't know
+
 Return ONLY valid JSON — no markdown, no commentary, no explanation outside the JSON.`;
 
-    const userPrompt = `Analyze this project and return a JSON object with EXACTLY these two keys:
+    const userPrompt = `Analyze this repository following this systematic process:
+
+## STEP 1: ANALYZE THE REPOSITORY
+
+Examine the provided code for:
+- Directory structure and file organization
+- Key configuration files (package.json, requirements.txt, Dockerfile, etc.)
+- Entry points (main files, index files, app files)
+- Frameworks and libraries actually used
+- Services, modules, and components that exist
+- Database connections, APIs, and external integrations found in code
+- Environment variables and infrastructure hints (docker-compose, k8s, etc.)
+
+## STEP 2: DETERMINE ARCHITECTURE TYPE
+
+Based on what you find, identify the architecture pattern:
+- Microservices / distributed system → Show services + connections
+- Monolith / MVC web app → Show layered architecture
+- Frontend app → Show component structure
+- Library / SDK → Show module dependencies
+- Data pipeline → Show data flow
+- Mixed / unclear → Show folder structure + component map
+
+## STEP 3: GENERATE ACCURATE DIAGRAM
+
+Create a JSON architecture diagram with these requirements:
+
+### Node Requirements:
+- Each node MUST represent something that ACTUALLY EXISTS in the codebase
+- Use SPECIFIC names from actual files/folders (e.g., "app/api/analyze/route.ts", "lib/github.ts")
+- DO NOT use generic names like "Backend Service" or "API Layer" unless that's the actual structure
+- Each node MUST have:
+    "id": unique snake_case identifier
+    "label": specific file path, component name, or service name from the actual code
+    "type": one of: frontend | backend | service | database | external | infrastructure
+
+- Include 15-30 nodes depending on complexity
+- Only include infrastructure (Redis, queues, etc.) if you see it in package.json, imports, or config files
+
+### Edge Requirements:
+- Each edge shows actual data flow or dependencies found in the code
+- Each edge MUST have:
+    "from": source node id
+    "to": target node id  
+    "label": specific action (e.g., "POST /api/analyze", "imports", "queries")
+- Show request/response flows based on actual routes
+- NO self-loops (from === to is forbidden)
+- Only show connections you can verify from the code
+
+### Notes Requirements:
+- Include 4-8 observations about the architecture
+- Mention the actual tech stack found (languages, frameworks, databases)
+- Note the architecture pattern (MVC, microservices, etc.)
+- Mention entry points and how execution flows
+- Note any external dependencies or APIs
+- CRITICAL: Only mention infrastructure you actually see in the code
+
+## STEP 4: PROVIDE SUMMARY
+
+Return a JSON object with EXACTLY these keys:
 
 1. "overallFlow": A comprehensive paragraph (200-300 words) explaining:
-   - What this project does (its purpose and business value)
-   - Complete data flow: User → Frontend → API → Services → Database → Response
-   - Authentication and authorization flow
-   - All technologies and how they integrate
-   - External services and APIs
-   - Caching strategy (if any)
-   - Async processing (if any)
+   - What this project does (purpose and functionality)
+   - The architecture pattern used
+   - Complete data flow from entry point to storage
+   - Technologies used and how they integrate
+   - External services and APIs (only if found in code)
+   - Any notable patterns or design decisions
 
-2. "architectureJson": A DETAILED, PRODUCTION-LEVEL architecture diagram as JSON.
-   CRITICAL: You are running on a DEDICATED high-capacity API key. You MUST generate an EXTREMELY DETAILED diagram with as many relevant nodes and deep connections as you can find. Don't summarize. Extract the authentic complexity of the system.
-
-   CRITICAL REQUIREMENTS - Include ALL these layers if detected:
-   
-   🔹 Layer 1: Client & Authentication
-   - User/Browser node
-   - Frontend framework (React, Next.js, Vue, etc.)
-   - OAuth/Auth provider (GitHub, Google, Auth0, etc.)
-   - Session management
-   
-   🔹 Layer 2: API Gateway & Rate Limiting
-   - API Routes/Controllers
-   - Auth middleware
-   - Input validation
-   - Rate limiter (Redis-backed if detected)
-   
-   🔹 Layer 3: Async Processing (CRITICAL if detected)
-   - Job Queue (BullMQ, RabbitMQ, SQS, Celery, etc.)
-   - Worker Service (separate from API)
-   - Background jobs
-   
-   🔹 Layer 4: External Integrations
-   - GitHub API (with rate limit boundary)
-   - Third-party APIs (Stripe, SendGrid, etc.)
-   - AI/ML services (OpenAI, Groq, etc.)
-   
-   🔹 Layer 5: Business Logic & Services
-   - Core services
-   - Data processing
-   - Business rules
-   
-   🔹 Layer 6: Caching Layer
-   - Redis/Memcached (CRITICAL: DO NOT HALLUCINATE THIS. ONLY include if explicitly found in package.json or code)
-   - Cache strategy
-   - Session storage
-   
-   🔹 Layer 7: Storage Layer
-   - Primary database (PostgreSQL, MongoDB, MySQL, etc.)
-   - Secondary databases
-   - File storage (S3, etc.)
-
-   Node Requirements:
-   - Each node MUST have:
-       "id"    : unique snake_case string, no spaces
-       "label" : highly specific file name, exact route path, or specialized module name (e.g., "app/api/analyze/route.ts", "React Dashboard <Results>", "lib/github.ts", "MongoDB User Schema"). DO NOT USE GENERIC BUCKETS like "React Frontend" or "FastAPI Backend". Be extremely detailed and precise!
-       "type"  : one of: frontend | backend | service | database | external | infrastructure
-   - Include 25-45 nodes for a highly detailed and granular architectural picture. Extract specific components from the provided files.
-   - Group related components logically
-   - Show ALL critical infrastructure and core route handlers
-
-   Edge Requirements:
-   - Each edge MUST have:
-       "from"  : source node id
-       "to"    : target node id
-       "label" : specific action/data (e.g., "POST /api/analyze", "OAuth token", "Enqueue job", "Fetch repo data")
-   - Show complete request/response flow
-   - Include async flows (job queues)
-   - Show data flow directions clearly
-   - NO self-loops (from === to is forbidden)
-
-   Notes Requirements:
-   - CRITICAL STRICNESS: DO NOT HALLUCINATE INFRASTRUCTURE. If Redis, Memcached, or a specific database is not clearly visible in the code or package.json, DO NOT INCLUDE IT in the nodes, edges, or notes.
-   - Include 4-8 architectural observations
-   - Mention authentication strategy
-   - Mention async processing if present
-   - Mention caching strategy
-   - Mention rate limiting
-   - Mention scalability considerations
-
-   Example structure (expand this significantly):
+2. "architectureJson": The detailed diagram as JSON with structure:
    {
      "nodes": [
        { "id": "user", "label": "User Browser", "type": "frontend" },
-       { "id": "frontend", "label": "Next.js Frontend", "type": "frontend" },
-       { "id": "auth", "label": "GitHub OAuth", "type": "external" },
-       { "id": "api", "label": "Next.js API Routes", "type": "backend" },
-       { "id": "auth_middleware", "label": "Auth Middleware", "type": "service" },
-       { "id": "rate_limiter", "label": "Redis Rate Limiter", "type": "infrastructure" },
-       { "id": "job_queue", "label": "BullMQ Job Queue", "type": "infrastructure" },
-       { "id": "worker", "label": "Worker Service", "type": "service" },
-       { "id": "github_api", "label": "GitHub API", "type": "external" },
-       { "id": "cache", "label": "Redis Cache", "type": "database" },
-       { "id": "db", "label": "MongoDB", "type": "database" }
+       { "id": "nextjs_app", "label": "Next.js App Router", "type": "frontend" },
+       { "id": "api_routes", "label": "app/api/*", "type": "backend" },
+       { "id": "mongodb", "label": "MongoDB Database", "type": "database" },
+       { "id": "github_api", "label": "GitHub REST API", "type": "external" }
      ],
      "edges": [
-       { "from": "user", "to": "frontend", "label": "HTTPS request" },
-       { "from": "frontend", "to": "auth", "label": "OAuth flow" },
-       { "from": "frontend", "to": "api", "label": "API calls" },
-       { "from": "api", "to": "auth_middleware", "label": "Validate token" },
-       { "from": "api", "to": "rate_limiter", "label": "Check limits" },
-       { "from": "api", "to": "job_queue", "label": "Enqueue analysis" },
-       { "from": "job_queue", "to": "worker", "label": "Process job" },
-       { "from": "worker", "to": "github_api", "label": "Fetch repo data" },
-       { "from": "worker", "to": "cache", "label": "Cache results" },
-       { "from": "worker", "to": "db", "label": "Save analysis" }
+       { "from": "user", "to": "nextjs_app", "label": "HTTPS request" },
+       { "from": "nextjs_app", "to": "api_routes", "label": "API calls" },
+       { "from": "api_routes", "to": "mongodb", "label": "CRUD operations" },
+       { "from": "api_routes", "to": "github_api", "label": "Fetch repo data" }
      ],
      "notes": [
+       "Next.js 14 with App Router architecture",
+       "MongoDB for data persistence",
        "GitHub OAuth for authentication",
-       "Redis-backed rate limiting (100 req/min)",
-       "Async job processing with BullMQ",
-       "GitHub API rate limit: 5000 req/hr",
-       "MongoDB for persistent storage",
-       "Redis for caching and sessions"
+       "Server-side rendering with React Server Components"
      ]
    }
 
@@ -274,6 +258,8 @@ ${formatTechStack(techStack)}
 
 ## Key File Contents
 ${truncate(keyFilesStr, 25000)}
+
+REMEMBER: Only include what you can actually verify from the provided code. Do not hallucinate infrastructure or services.
 
 Return ONLY the JSON object.`;
 

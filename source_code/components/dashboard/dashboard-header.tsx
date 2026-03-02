@@ -34,7 +34,6 @@ export function DashboardHeader({ title }: { title: string }) {
               className="relative h-8 w-8 text-muted-foreground"
             >
               <Bell className="h-4 w-4" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
               <span className="sr-only">Notifications</span>
             </Button>
           </PopoverTrigger>

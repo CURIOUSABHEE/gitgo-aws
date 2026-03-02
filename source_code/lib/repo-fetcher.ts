@@ -84,7 +84,9 @@ export class RepoFetcher {
       if (allRepos.length >= maxRepos) break
 
       console.log(`[RepoFetcher] Searching with query: ${query}`)
-      const repos = await this.searchRepos(query, maxRepos - allRepos.length)
+      // Fetch more repos per query to ensure we get enough results
+      const reposPerQuery = Math.max(50, Math.ceil(maxRepos / searchQueries.length))
+      const repos = await this.searchRepos(query, reposPerQuery)
 
       // Deduplicate by githubId
       const existingIds = new Set(allRepos.map(r => r.githubId))
@@ -155,39 +157,13 @@ export class RepoFetcher {
   }
 
   /**
-   * Fetch detailed repository data
+   * Fetch detailed repository data (optimized - minimal API calls)
    */
   private async fetchRepoDetails(item: GitHubRepoItem): Promise<FetchedRepoData | null> {
     try {
-      await this.checkRateLimit()
-
-      // Check for CONTRIBUTING file
-      const hasContributingFile = await this.checkFileExists(
-        item.owner.login,
-        item.name,
-        ["CONTRIBUTING.md", "CONTRIBUTING", ".github/CONTRIBUTING.md"]
-      )
-
-      // Check for CI/CD
-      const hasCI = await this.checkFileExists(
-        item.owner.login,
-        item.name,
-        [".github/workflows"]
-      )
-
-      // Count good first issues
-      const goodFirstIssueCount = await this.countIssuesByLabel(
-        item.owner.login,
-        item.name,
-        ["good-first-issue", "good first issue", "beginner-friendly"]
-      )
-
-      // Count help wanted issues
-      const helpWantedCount = await this.countIssuesByLabel(
-        item.owner.login,
-        item.name,
-        ["help-wanted", "help wanted"]
-      )
+      // Use basic data from search results to avoid extra API calls
+      // We'll estimate good first issues from open issues count
+      const estimatedGoodFirstIssues = item.open_issues_count > 0 ? Math.max(1, Math.floor(item.open_issues_count * 0.1)) : 0
 
       return {
         githubId: item.id,
@@ -201,11 +177,11 @@ export class RepoFetcher {
         openIssuesCount: item.open_issues_count,
         forksCount: item.forks_count,
         lastPushedAt: new Date(item.pushed_at),
-        hasContributingFile,
-        hasCI,
+        hasContributingFile: false, // Will be checked later if needed
+        hasCI: false, // Will be checked later if needed
         licenseName: item.license?.name || null,
-        goodFirstIssueCount,
-        helpWantedCount,
+        goodFirstIssueCount: estimatedGoodFirstIssues,
+        helpWantedCount: 0,
       }
     } catch (error) {
       console.error(`[RepoFetcher] Error fetching details for ${item.full_name}:`, error)

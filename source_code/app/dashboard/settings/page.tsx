@@ -8,7 +8,8 @@ import { SettingsResume } from "@/components/settings/settings-resume"
 import { SettingsPreferences } from "@/components/settings/settings-preferences"
 import { SettingsTechnologyMap } from "@/components/settings/settings-technology-map"
 import { SettingsSubscription } from "@/components/settings/settings-subscription"
-import { User, Plug, FileText, SlidersHorizontal, Code2, CreditCard } from "lucide-react"
+import { SettingsDatabase } from "@/components/settings/settings-database"
+import { User, Plug, FileText, SlidersHorizontal, Code2, CreditCard, Database } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const tabs = [
@@ -18,6 +19,7 @@ const tabs = [
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "resume", label: "Resume", icon: FileText },
   { id: "preferences", label: "Preferences", icon: SlidersHorizontal },
+  { id: "database", label: "Repository Database", icon: Database },
 ] as const
 
 type TabId = (typeof tabs)[number]["id"]
@@ -60,6 +62,7 @@ export default function SettingsPage() {
           {activeTab === "integrations" && <SettingsIntegrations />}
           {activeTab === "resume" && <SettingsResume />}
           {activeTab === "preferences" && <SettingsPreferences />}
+          {activeTab === "database" && <SettingsDatabase />}
         </div>
       </div>
     </div>
