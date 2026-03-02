@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     // ── Track repository view ──────────────────────────────────────────
     const userId = session.user.id || session.user.email || "anonymous";
     const userAgent = req.headers.get("user-agent") || undefined;
-    
+
     try {
         const trackingResult = await RepoTracker.trackView(normalizedUrl, {
             userId,
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         });
 
         console.log(`[/api/analyze] View tracked: ${normalizedUrl} - Views: ${trackingResult.viewCount}, Cached: ${trackingResult.isCached}`);
-        
+
         if (trackingResult.cacheDecision) {
             console.log(`[/api/analyze] Cache decision: ${trackingResult.cacheDecision.reason} (Priority: ${trackingResult.cacheDecision.priority})`);
         }
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
 
         if (cacheResult) {
             const { data, stale } = cacheResult;
-            
+
             // If data is fresh, return immediately
             if (!stale) {
                 console.log(`[/api/analyze] ✅ Fresh cache hit for ${normalizedUrl}`);
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 
             // If data is stale, return it but trigger background refresh
             console.log(`[/api/analyze] ⚠️ Stale cache hit for ${normalizedUrl}, returning stale data`);
-            
+
             // Trigger background refresh (fire and forget)
             // Note: In production, consider using a queue system for this
             Promise.resolve().then(async () => {
@@ -120,10 +120,10 @@ export async function POST(req: NextRequest) {
                 }
             });
 
-            return NextResponse.json({ 
-                cached: true, 
+            return NextResponse.json({
+                cached: true,
                 stale: true,
-                data 
+                data
             }, { status: 200 });
         }
     }
@@ -148,7 +148,7 @@ async function performAnalysis(
 ): Promise<NextResponse> {
     try {
         const githubToken = (session as any).accessToken || process.env.GITHUB_TOKEN;
-        
+
         if (!githubToken) {
             return NextResponse.json(
                 { error: "GitHub token not found. Please sign in with GitHub." },
@@ -166,7 +166,7 @@ async function performAnalysis(
 
         // Then fetch file tree (needs to be separate as it doesn't depend on metadata)
         const fileTree = await getFileTree(owner, repo, githubToken);
-        
+
         // Now fetch tech stack and key files (both need fileTree)
         const [techStack, keyFileContents] = await Promise.all([
             getTechStack(owner, repo, fileTree, githubToken),
@@ -190,13 +190,22 @@ async function performAnalysis(
         // ── 6. Save to MongoDB ────────────────────────────────────────────
         const fileTreeStr = JSON.stringify(fileTree);
 
+        const mappedMetadata = {
+            ...metadata,
+            stars: metadata.stargazers_count || 0,
+            forks: metadata.forks_count || 0,
+            language: metadata.language,
+            description: metadata.description,
+            topics: metadata.topics || []
+        };
+
         const analysisDoc = await RepositoryAnalysis.findOneAndUpdate(
             { repoUrl: normalizedUrl },
             {
                 repoUrl: normalizedUrl,
                 owner,
                 repoName: repo,
-                metadata,
+                metadata: mappedMetadata,
                 commits,
                 contributors,
                 repoStatus,
@@ -245,6 +254,13 @@ async function performAnalysis(
         }
 
         const message = err instanceof Error ? err.message : "An unknown error occurred.";
+
+        // Handle Groq token limit exhausted
+        if (message.includes("429") || message.includes("RateLimitExhausted")) {
+            console.warn("[/api/analyze] 🔒 Groq daily token limit exhausted — returning rateLimitExceeded.");
+            return NextResponse.json({ rateLimitExceeded: true }, { status: 402 });
+        }
+
         return NextResponse.json({ error: `Analysis failed: ${message}` }, { status: 500 });
     }
 }

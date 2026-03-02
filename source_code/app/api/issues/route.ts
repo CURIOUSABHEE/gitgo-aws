@@ -1,31 +1,43 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { parseGitHubUrl } from "@/lib/utils"
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { getFilteredIssues } from "@/lib/github";
+import { parseGitHubUrl } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url)
-    const repoUrl = searchParams.get("repoUrl")
-    const type = searchParams.get("type") || "issue"
-    const sort = searchParams.get("sort") || "created-desc"
-    const labels = searchParams.get("labels")
-
+    const urlParams = req.nextUrl.searchParams;
+    const repoUrl = urlParams.get("repoUrl");
     if (!repoUrl) {
-      return NextResponse.json({ error: "repoUrl is required" }, { status: 400 })
+      return NextResponse.json({ error: "Missing repoUrl" }, { status: 400 });
     }
 
-    const parsed = parseGitHubUrl(repoUrl)
+    const parsed = parseGitHubUrl(repoUrl);
     if (!parsed) {
-      return NextResponse.json({ error: "Invalid GitHub URL" }, { status: 400 })
+      return NextResponse.json({ error: "Invalid GitHub URL" }, { status: 400 });
     }
 
-    const { owner, repo } = parsed
-    const token = (session as any).accessToken || process.env.GITHUB_TOKEN
+    const { owner, repo } = parsed;
+
+    // Parse filters
+    const labelsParam = urlParams.get("labels");
+    const labels = labelsParam ? labelsParam.split(",").map((l: string) => l.trim()).filter(Boolean) : undefined;
+
+    const typeParam = urlParams.get("type") as "issue" | "pr" | undefined;
+    // Validate sort to ensure it matches the allowed types exactly
+    const rawSort = urlParams.get("sort");
+    const allowedSorts = ["created-desc", "created-asc", "comments-desc"] as const;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sortParam = allowedSorts.includes(rawSort as any)
+      ? (rawSort as "created-desc" | "created-asc" | "comments-desc")
+      : undefined;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const token = (session as any).accessToken || process.env.GITHUB_TOKEN;
 
     if (!token) {
       return NextResponse.json(
@@ -34,93 +46,19 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Build GitHub API URL
-    let apiUrl = `https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=30`
+    const issues = await getFilteredIssues(
+      owner,
+      repo,
+      { labels, type: typeParam, sort: sortParam },
+      token
+    );
 
-    // Add labels filter if provided
-    if (labels) {
-      apiUrl += `&labels=${encodeURIComponent(labels)}`
-    }
-
-    // Add sort parameter
-    if (sort === "created-desc") {
-      apiUrl += "&sort=created&direction=desc"
-    } else if (sort === "created-asc") {
-      apiUrl += "&sort=created&direction=asc"
-    } else if (sort === "comments-desc") {
-      apiUrl += "&sort=comments&direction=desc"
-    }
-
-    // Fetch issues from GitHub
-    const response = await fetch(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.error(`GitHub API error (${response.status}):`, errorData)
-
-      if (response.status === 404) {
-        return NextResponse.json(
-          { error: "Repository not found or you don't have access" },
-          { status: 404 }
-        )
-      }
-
-      if (response.status === 403) {
-        return NextResponse.json(
-          { error: "GitHub API rate limit exceeded" },
-          { status: 403 }
-        )
-      }
-
-      return NextResponse.json(
-        { error: `GitHub API error: ${errorData.message || "Unknown error"}` },
-        { status: response.status }
-      )
-    }
-
-    const data = await response.json()
-
-    // Filter based on type (issue vs PR)
-    // GitHub API returns both issues and PRs in the /issues endpoint
-    // PRs have a "pull_request" property
-    const filtered = data.filter((item: any) => {
-      if (type === "pr") {
-        return item.pull_request !== undefined
-      } else {
-        return item.pull_request === undefined
-      }
-    })
-
-    // Transform to match our FilteredIssue type
-    const issues = filtered.map((item: any) => ({
-      id: item.id,
-      number: item.number,
-      title: item.title,
-      state: item.state,
-      html_url: item.html_url,
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-      comments: item.comments,
-      user: {
-        login: item.user.login,
-        avatar_url: item.user.avatar_url,
-      },
-      labels: item.labels.map((label: any) => ({
-        name: label.name,
-        color: label.color,
-      })),
-    }))
-
-    return NextResponse.json({ issues })
+    return NextResponse.json({ issues });
   } catch (error) {
-    console.error("Error fetching issues:", error)
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to fetch issues"
-    return NextResponse.json({ error: errorMessage }, { status: 500 })
+    console.error("Issue fetch error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch issues", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }

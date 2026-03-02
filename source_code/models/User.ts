@@ -75,6 +75,15 @@ export interface IUser extends Document {
   paymentId?: string // Razorpay payment ID
   routeAnalysisCount?: number // Daily route analysis count
   routeAnalysisResetDate?: Date // When to reset the count
+  // Resume Parsing Fields
+  resumeFileName?: string
+  resumeUploadedAt?: Date
+  resumeCareerObjective?: string
+  resumeSkillGroups?: any[] // Simplified typing for schema
+  resumeExperience?: any[]
+  resumeEducation?: any[]
+  resumeProjects?: any[]
+  resumeRawText?: string
 }
 
 const UserSchema = new Schema<IUser>(
@@ -168,6 +177,15 @@ const UserSchema = new Schema<IUser>(
     paymentId: { type: String },
     routeAnalysisCount: { type: Number, default: 0 },
     routeAnalysisResetDate: { type: Date, default: Date.now },
+    // Resume Fields
+    resumeFileName: { type: String },
+    resumeUploadedAt: { type: Date },
+    resumeCareerObjective: { type: String },
+    resumeSkillGroups: [{ type: Schema.Types.Mixed }],
+    resumeExperience: [{ type: Schema.Types.Mixed }],
+    resumeEducation: [{ type: Schema.Types.Mixed }],
+    resumeProjects: [{ type: Schema.Types.Mixed }],
+    resumeRawText: { type: String },
   },
   {
     timestamps: true,

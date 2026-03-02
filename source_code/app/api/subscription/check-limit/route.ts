@@ -35,8 +35,8 @@ export async function POST() {
 
     // Calculate limits based on plan
     const limits = {
-      free: 2,
-      starter: 10,
+      free: 50, // Raised from 2 to 50 to accommodate extra load-balanced GROQ API keys
+      starter: 100,
       pro: Infinity,
       enterprise: Infinity,
     }

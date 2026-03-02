@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
+import { ArchitectureDiagram } from "@/components/ArchitectureDiagram";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -182,10 +183,10 @@ function AnalyzeRouteContent() {
         toast.error(errorMsg);
         return;
       }
-      
+
       const toastId = forceReload ? "route-reload" : "route-analyze";
       toast.loading(forceReload ? "Reloading route analysis..." : "Analyzing route...", { id: toastId });
-      
+
       try {
         const url = new URL("/api/analyze-route", window.location.origin);
         url.searchParams.set("repoUrl", repoUrl);
@@ -229,198 +230,7 @@ function AnalyzeRouteContent() {
           toast.error(errorMsg, { id: toastId });
           return;
         }
-        // ── 402 (rate limit exhausted) ──
-        if (response.status === 402) {
-          console.error(
-            `[analyze-route] Rate limit exceeded for route "${route}":`,
-            data,
-          );
-          setRateLimitExceeded(true);
-          setResult(null);
-          setError(null);
-          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
-          return;
-        }
 
-        // ── 500 or other errors ──
-        if (!response.ok) {
-          const errorMsg = data.error || `API error ${response.status}`;
-          console.error(
-            `[analyze-route] API error ${response.status} for route "${route}":`,
-            data,
-          );
-          setError(errorMsg);
-          toast.error(errorMsg, { id: toastId });
-          return;
-        }
-        // ── 402 (rate limit exhausted) ──
-        if (response.status === 402) {
-          console.error(
-            `[analyze-route] Rate limit exceeded for route "${route}":`,
-            data,
-          );
-          setRateLimitExceeded(true);
-          setResult(null);
-          setError(null);
-          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
-          return;
-        }
-
-        // ── 500 or other errors ──
-        if (!response.ok) {
-          const errorMsg = data.error || `API error ${response.status}`;
-          console.error(
-            `[analyze-route] API error ${response.status} for route "${route}":`,
-            data,
-          );
-          setError(errorMsg);
-          toast.error(errorMsg, { id: toastId });
-          return;
-        }
-        // ── 402 (rate limit exhausted) ──
-        if (response.status === 402) {
-          console.error(
-            `[analyze-route] Rate limit exceeded for route "${route}":`,
-            data,
-          );
-          setRateLimitExceeded(true);
-          setResult(null);
-          setError(null);
-          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
-          return;
-        }
-
-        // ── 500 or other errors ──
-        if (!response.ok) {
-          const errorMsg = data.error || `API error ${response.status}`;
-          console.error(
-            `[analyze-route] API error ${response.status} for route "${route}":`,
-            data,
-          );
-          setError(errorMsg);
-          toast.error(errorMsg, { id: toastId });
-          return;
-        }
-        // ── 402 (rate limit exhausted) ──
-        if (response.status === 402) {
-          console.error(
-            `[analyze-route] Rate limit exceeded for route "${route}":`,
-            data,
-          );
-          setRateLimitExceeded(true);
-          setResult(null);
-          setError(null);
-          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
-          return;
-        }
-
-        // ── 500 or other errors ──
-        if (!response.ok) {
-          const errorMsg = data.error || `API error ${response.status}`;
-          console.error(
-            `[analyze-route] API error ${response.status} for route "${route}":`,
-            data,
-          );
-          setError(errorMsg);
-          toast.error(errorMsg, { id: toastId });
-          return;
-        }
-        // ── 402 (rate limit exhausted) ──
-        if (response.status === 402) {
-          console.error(
-            `[analyze-route] Rate limit exceeded for route "${route}":`,
-            data,
-          );
-          setRateLimitExceeded(true);
-          setResult(null);
-          setError(null);
-          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
-          return;
-        }
-
-        // ── 500 or other errors ──
-        if (!response.ok) {
-          const errorMsg = data.error || `API error ${response.status}`;
-          console.error(
-            `[analyze-route] API error ${response.status} for route "${route}":`,
-            data,
-          );
-          setError(errorMsg);
-          toast.error(errorMsg, { id: toastId });
-          return;
-        }
-        // ── 402 (rate limit exhausted) ──
-        if (response.status === 402) {
-          console.error(
-            `[analyze-route] Rate limit exceeded for route "${route}":`,
-            data,
-          );
-          setRateLimitExceeded(true);
-          setResult(null);
-          setError(null);
-          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
-          return;
-        }
-
-        // ── 500 or other errors ──
-        if (!response.ok) {
-          const errorMsg = data.error || `API error ${response.status}`;
-          console.error(
-            `[analyze-route] API error ${response.status} for route "${route}":`,
-            data,
-          );
-          setError(errorMsg);
-          toast.error(errorMsg, { id: toastId });
-          return;
-        }
-        // ── 402 (rate limit exhausted) ──
-        if (response.status === 402) {
-          console.error(
-            `[analyze-route] Rate limit exceeded for route "${route}":`,
-            data,
-          );
-          setRateLimitExceeded(true);
-          setResult(null);
-          setError(null);
-          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
-          return;
-        }
-
-        // ── 500 or other errors ──
-        if (!response.ok) {
-          const errorMsg = data.error || `API error ${response.status}`;
-          console.error(
-            `[analyze-route] API error ${response.status} for route "${route}":`,
-            data,
-          );
-          setError(errorMsg);
-          toast.error(errorMsg, { id: toastId });
-          return;
-        }
-        // ── 402 (rate limit exhausted) ──
-        if (response.status === 402) {
-          console.error(
-            `[analyze-route] Rate limit exceeded for route "${route}":`,
-            data,
-          );
-          setRateLimitExceeded(true);
-          setResult(null);
-          setError(null);
-          toast.error("Rate limit exceeded. Please upgrade your plan.", { id: toastId });
-          return;
-        }
-
-        // ── 500 or other errors ──
-        if (!response.ok) {
-          const errorMsg = data.error || `API error ${response.status}`;
-          console.error(
-            `[analyze-route] API error ${response.status} for route "${route}":`,
-            data,
-          );
-          setError(errorMsg);
-          toast.error(errorMsg, { id: toastId });
-          return;
-        }
         // ── 402 (rate limit exhausted) ──
         if (response.status === 402) {
           console.error(
@@ -475,7 +285,7 @@ function AnalyzeRouteContent() {
         setFromCache(data.fromCache === true);
         setError(null);
         setRateLimitExceeded(false);
-        
+
         if (data.fromCache && !data.stale) {
           toast.success("Route analysis loaded from cache", { id: toastId });
         } else if (data.stale) {
@@ -614,38 +424,47 @@ function AnalyzeRouteContent() {
       {!isSpinning && result && (
         <div className="space-y-6">
           {/* Flow Diagram */}
-          <section className="rounded-2xl border border-white/10 bg-slate-800/60 shadow-xl">
-            <div className="flex items-center gap-3 border-b border-white/6 px-6 py-4">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-base">
-                🌊
-              </span>
-              <div>
-                <p className="text-sm font-bold text-white">
-                  Flow Visualization
-                </p>
-                <p className="text-xs text-slate-500">
-                  Mermaid.js Architecture Diagram
-                </p>
-              </div>
-            </div>
-            {result.flowVisualization ? (
-              <div
-                className="overflow-auto rounded-b-2xl bg-slate-950/60 p-4"
-                style={{ maxHeight: "400px" }}
-              >
-                <MermaidDiagram
-                  chart={result.flowVisualization
-                    .replace(/```mermaid\n?/g, "")
-                    .replace(/```/g, "")
-                    .trim()}
-                />
-              </div>
-            ) : (
-              <p className="px-6 py-4 text-sm text-slate-500">
-                No flow diagram generated.
-              </p>
-            )}
-          </section>
+          {(() => {
+            if (!result.flowVisualization) {
+              return (
+                <section className="rounded-2xl border border-white/10 bg-slate-800/60 shadow-xl">
+                  <div className="flex items-center gap-3 border-b border-white/6 px-6 py-4">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-base">🌊</span>
+                    <div>
+                      <p className="text-sm font-bold text-white">Flow Visualization</p>
+                    </div>
+                  </div>
+                  <p className="px-6 py-4 text-sm text-slate-500">No flow diagram generated.</p>
+                </section>
+              );
+            }
+
+            // Try rendering as React Flow JSON first
+            try {
+              const archData = JSON.parse(result.flowVisualization);
+              if (archData && archData.nodes) {
+                return <ArchitectureDiagram repoName={route ?? "Route"} data={archData} />;
+              }
+            } catch (e) {
+              // Ignore parse errors, fallback to Mermaid string
+            }
+
+            // Fallback for legacy cached Mermaid strings
+            return (
+              <section className="rounded-2xl border border-white/10 bg-slate-800/60 shadow-xl">
+                <div className="flex items-center gap-3 border-b border-white/6 px-6 py-4">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-base">🌊</span>
+                  <div>
+                    <p className="text-sm font-bold text-white">Flow Visualization</p>
+                    <p className="text-xs text-slate-500">Mermaid.js Diagram (Legacy Cache)</p>
+                  </div>
+                </div>
+                <div className="overflow-auto rounded-b-2xl bg-slate-950/60 p-4" style={{ maxHeight: "400px" }}>
+                  <MermaidDiagram chart={result.flowVisualization.replace(/```mermaid\n?/g, "").replace(/```/g, "").trim()} />
+                </div>
+              </section>
+            );
+          })()}
 
           {/* Execution Trace */}
           <section>

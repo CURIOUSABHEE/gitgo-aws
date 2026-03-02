@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
@@ -45,6 +46,11 @@ const mainNav = [
     title: "Explore",
     href: "/dashboard/explore",
     icon: Compass,
+  },
+  {
+    title: "Smart Matches",
+    href: "/dashboard/recommendations",
+    icon: Sparkles,
   },
   {
     title: "GSoC Orgs",
@@ -98,19 +104,28 @@ export function AppSidebar() {
   const userName = profile?.user.name || "User"
   const userLogin = profile?.user.login || "user"
   const userAvatar = profile?.user.avatar_url
-  
-  // Generate initials from name or username
+
+  // Generate initials from name or username detereministically
   const initials = profile?.user.name
-    ? profile.user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
-    : userLogin.slice(0, 2).toUpperCase()
+    ? profile.user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+    : profile?.user.login
+      ? profile.user.login.slice(0, 2).toUpperCase()
+      : "US"
 
   // Get languages from profile (same as My Projects page)
   const languages = profile?.languages || []
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleLogout = () => {
     signOut({ callbackUrl: "/" })
   }
 
+  // To prevent hydration warnings due to user initials/names being calculated on client side, 
+  // return a skeletal footer until mounted.
   return (
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="p-4">
@@ -204,29 +219,33 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarSeparator />
-        <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-          <Avatar className="h-8 w-8">
-            {userAvatar && <AvatarImage src={userAvatar} alt={userName} />}
-            <AvatarFallback className="bg-secondary text-xs text-foreground">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 truncate">
-            <p className="truncate text-sm font-medium text-foreground">
-              {userName}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              @{userLogin}
-            </p>
+        {mounted ? (
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+            <Avatar className="h-8 w-8">
+              {userAvatar && <AvatarImage src={userAvatar} alt={userName} />}
+              <AvatarFallback className="bg-secondary text-xs text-foreground">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 truncate">
+              <p className="truncate text-sm font-medium text-foreground">
+                {userName}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                @{userLogin}
+              </p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="sr-only">Log out</span>
+            </button>
           </div>
-          <button 
-            onClick={handleLogout}
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="sr-only">Log out</span>
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2 h-12 invisible"></div>
+        )}
       </SidebarFooter>
     </Sidebar>
   )
