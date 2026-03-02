@@ -102,11 +102,6 @@ export default function ExplorePage() {
     )
   })
 
-  const [owner, repoName] = (repo: RepoData) => {
-    const parts = repo.fullName.split("/")
-    return [parts[0] || "", parts[1] || repo.name]
-  }
-
   return (
     <div className="flex flex-col">
       <DashboardHeader title="Explore" />

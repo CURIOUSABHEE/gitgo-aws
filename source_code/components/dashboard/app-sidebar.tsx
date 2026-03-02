@@ -41,46 +41,55 @@ const mainNav = [
     title: "Overview",
     href: "/dashboard/overview",
     icon: Sparkles,
+    description: "Dashboard home with your GitHub activity summary and quick stats",
   },
   {
     title: "Explore",
     href: "/dashboard/explore",
     icon: Compass,
+    description: "Browse curated open-source repos with good first issues",
   },
   {
     title: "Smart Matches",
     href: "/dashboard/recommendations",
     icon: Sparkles,
+    description: "AI-powered repo recommendations based on your skills and projects",
   },
   {
     title: "GSoC Orgs",
     href: "/dashboard/gsoc",
     icon: Award,
+    description: "Discover Google Summer of Code organizations and opportunities",
   },
   {
     title: "Repo Sync",
     href: "/dashboard/repo-sync",
     icon: Database,
+    description: "Manage the curated repository database for Explore page",
   },
   {
     title: "My Projects",
     href: "/dashboard/projects",
     icon: FolderGit2,
+    description: "View and manage your personal GitHub repositories",
   },
   {
     title: "Analyze Repo",
     href: "/dashboard/analyze",
     icon: Search,
+    description: "Deep analysis of any GitHub repo with architecture insights",
   },
   {
     title: "Community",
     href: "/dashboard/community",
     icon: Users,
+    description: "Connect with other developers and join discussions",
   },
   {
     title: "Portfolio",
     href: "/dashboard/portfolio",
     icon: FileUser,
+    description: "Generate and customize your developer portfolio",
   },
 ]
 
@@ -89,11 +98,13 @@ const filters = [
     title: "My Tech Stack",
     href: "/dashboard?filter=techstack",
     icon: Layers,
+    description: "Filter content based on your detected technologies",
   },
   {
     title: "Trending",
     href: "/dashboard/trending",
     icon: TrendingUp,
+    description: "See trending repositories on GitHub",
   },
 ]
 
@@ -149,7 +160,15 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
-                    tooltip={item.title}
+                    tooltip={{
+                      children: (
+                        <div className="space-y-1">
+                          <p className="font-semibold">{item.title}</p>
+                          <p className="text-xs text-muted-foreground">{item.description}</p>
+                        </div>
+                      ),
+                      side: "right",
+                    }}
                   >
                     <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
@@ -170,7 +189,18 @@ export function AppSidebar() {
             <SidebarMenu>
               {filters.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
+                  <SidebarMenuButton 
+                    asChild 
+                    tooltip={{
+                      children: (
+                        <div className="space-y-1">
+                          <p className="font-semibold">{item.title}</p>
+                          <p className="text-xs text-muted-foreground">{item.description}</p>
+                        </div>
+                      ),
+                      side: "right",
+                    }}
+                  >
                     <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -210,7 +240,19 @@ export function AppSidebar() {
       <SidebarFooter className="p-3">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings"} tooltip="Settings">
+            <SidebarMenuButton 
+              asChild 
+              isActive={pathname === "/dashboard/settings"} 
+              tooltip={{
+                children: (
+                  <div className="space-y-1">
+                    <p className="font-semibold">Settings</p>
+                    <p className="text-xs text-muted-foreground">Configure profile, integrations, and preferences</p>
+                  </div>
+                ),
+                side: "right",
+              }}
+            >
               <Link href="/dashboard/settings">
                 <Settings className="h-4 w-4" />
                 <span>Settings</span>
