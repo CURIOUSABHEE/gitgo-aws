@@ -67,12 +67,17 @@ export class RepoFetcher {
   async fetchRepos(maxRepos: number = 10000): Promise<FetchedRepoData[]> {
     console.log(`[RepoFetcher] Starting fetch, target: ${maxRepos} repos`)
     const allRepos: FetchedRepoData[] = []
-    
+
     // Search queries to maximize coverage
     const searchQueries = [
-      'label:"good-first-issue" stars:>100 archived:false fork:false pushed:>2024-06-01',
-      'label:"help-wanted" stars:>100 archived:false fork:false pushed:>2024-06-01',
-      'label:"beginner-friendly" stars:>100 archived:false fork:false pushed:>2024-06-01',
+      'good-first-issue stars:>50 archived:false fork:false pushed:>2024-01-01',
+      'help-wanted stars:>50 archived:false fork:false pushed:>2024-01-01',
+      'topic:hacktoberfest stars:>50 archived:false fork:false pushed:>2024-01-01',
+      'topic:good-first-issue stars:>50 archived:false fork:false',
+      'topic:beginner-friendly stars:>50 archived:false fork:false',
+      'is:public stars:>200 archived:false fork:false pushed:>2024-01-01 language:javascript',
+      'is:public stars:>200 archived:false fork:false pushed:>2024-01-01 language:python',
+      'is:public stars:>200 archived:false fork:false pushed:>2024-01-01 language:typescript',
     ]
 
     for (const query of searchQueries) {
@@ -80,11 +85,11 @@ export class RepoFetcher {
 
       console.log(`[RepoFetcher] Searching with query: ${query}`)
       const repos = await this.searchRepos(query, maxRepos - allRepos.length)
-      
+
       // Deduplicate by githubId
       const existingIds = new Set(allRepos.map(r => r.githubId))
       const newRepos = repos.filter(r => !existingIds.has(r.githubId))
-      
+
       allRepos.push(...newRepos)
       console.log(`[RepoFetcher] Found ${newRepos.length} new repos, total: ${allRepos.length}`)
     }
@@ -121,7 +126,7 @@ export class RepoFetcher {
         }
 
         const data: GitHubSearchResponse = await response.json()
-        
+
         if (data.items.length === 0) {
           console.log(`[RepoFetcher] No more results on page ${page}`)
           break
