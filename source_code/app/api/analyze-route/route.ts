@@ -23,6 +23,9 @@ function parseGroq429WaitMs(message: string): number {
     // Hour-level wait (daily token limit) → subscription gate immediately
     if (/try again in\s+\d+h/i.test(message)) throw new RateLimitExhaustedError(message);
 
+    // Hard payload limit (requested tokens > total allowed per minute) → cannot wait this out
+    if (/Limit \d+, Requested \d+/i.test(message)) throw new RateLimitExhaustedError(message);
+
     const minMatch = message.match(/try again in\s+(\d+)m([\d.]+)s/i);
     if (minMatch) {
         const ms = (parseInt(minMatch[1]) * 60 + parseFloat(minMatch[2])) * 1000;
@@ -116,7 +119,7 @@ export async function GET(req: NextRequest) {
 
         if (cacheResult) {
             const { data, stale } = cacheResult;
-            
+
             // If data is fresh, return immediately
             if (!stale) {
                 console.log(`[analyze-route] ✅ Fresh cache HIT: "${route}" — returning instantly.`);
@@ -128,12 +131,13 @@ export async function GET(req: NextRequest) {
 
             // If data is stale, return it but trigger background refresh
             console.log(`[analyze-route] ⚠️ Stale cache HIT: "${route}" — returning stale data.`);
-            
+
             // Trigger background refresh (fire and forget)
             Promise.resolve().then(async () => {
                 try {
                     console.log(`[analyze-route] 🔄 Background refresh started for "${route}"`);
-                    await performRouteAnalysis(repoUrl, route, routeIndex);
+                    const token = (session as any)?.githubAccessToken || process.env.GITHUB_TOKEN || "";
+                    await performRouteAnalysis(repoUrl, route, routeIndex, token);
                 } catch (err) {
                     console.error(`[analyze-route] Background refresh failed for "${route}":`, err);
                 }
@@ -153,9 +157,10 @@ export async function GET(req: NextRequest) {
     // ─── 2. Deduplicate concurrent requests ──────────────────────────────
     // If multiple users request the same route analysis simultaneously,
     // only one LLM call is made
+    const token = (session as any)?.githubAccessToken || process.env.GITHUB_TOKEN || "";
     return await requestDeduplicator.deduplicate(
         `analyze-route:${repoUrl}:${route}`,
-        async () => performRouteAnalysis(repoUrl, route, routeIndex)
+        async () => performRouteAnalysis(repoUrl, route, routeIndex, token)
     );
 }
 
@@ -165,7 +170,8 @@ export async function GET(req: NextRequest) {
 async function performRouteAnalysis(
     repoUrl: string,
     route: string,
-    routeIndex: number
+    routeIndex: number,
+    githubToken: string
 ): Promise<NextResponse> {
     try {
         await connectDB();
@@ -199,7 +205,7 @@ async function performRouteAnalysis(
         let fullFiles: any[] = [];
 
         if (relevantPaths.length > 0) {
-            fullFiles = await getSpecificFiles(repoDoc.owner, repoDoc.repoName, relevantPaths);
+            fullFiles = await getSpecificFiles(repoDoc.owner, repoDoc.repoName, relevantPaths, githubToken);
             codebaseStr = fullFiles.map((f: any) => {
                 const lines = f.content.split("\n")
                     .map((line: string, i: number) => `${i + 1}| ${line}`)
@@ -220,9 +226,9 @@ async function performRouteAnalysis(
             fullFiles = keyFiles;
         }
 
-        // ── Step D: Deep analysis using main GROQ_API_KEY ─────────────────────
+        // ── Step D: Deep analysis using secondary distributed GROQ_API_KEYs ───────
         const result = await withRateLimitRetry(() =>
-            analyzeSpecificRoute(route, codebaseStr)
+            analyzeSpecificRoute(route, codebaseStr, routeIndex)
         );
 
         // ── Step E: Resolve <<<FILE:path:start-end>>> tags to real code ────────
@@ -273,13 +279,23 @@ async function performRouteAnalysis(
         return NextResponse.json({ data: result, fromCache: false }, { status: 200 });
 
     } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        const name = err instanceof Error ? err.name : "";
+
         // Groq daily token limit exhausted → show subscription gate, not error
-        if (err instanceof RateLimitExhaustedError) {
-            console.warn("[analyze-route] 🔒 Daily token limit exhausted — returning rateLimitExceeded.");
+        if (
+            err instanceof RateLimitExhaustedError ||
+            name === "RateLimitExhaustedError" ||
+            message.includes("429") ||
+            message.includes("RateLimitExhausted") ||
+            message.includes("rate_limit_exceeded") ||
+            message.includes("Limit 12000, Requested")
+        ) {
+            console.warn("[analyze-route] 🔒 Token limit exhausted — returning rateLimitExceeded (402).");
             return NextResponse.json({ rateLimitExceeded: true }, { status: 402 });
         }
+
         console.error("[analyze-route] Error:", err);
-        const message = err instanceof Error ? err.message : "Unknown error.";
         return NextResponse.json({ error: `Route analysis failed: ${message}` }, { status: 500 });
     }
 }

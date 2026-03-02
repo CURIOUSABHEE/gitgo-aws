@@ -29,10 +29,18 @@ function formatTechStack(techStack: TechStack): string {
 //   groq1     → GROQ_API_KEY_1 : file-identification for routes (index % 3 === 0)
 //   groq2     → GROQ_API_KEY_2 : file-identification for routes (index % 3 === 1)
 //   groq3     → GROQ_API_KEY_3 : file-identification for routes (index % 3 === 2)
+//   groqArchi → GROQ_API_KEY_ARCHI_1 & 2 : dedicated for large architecture diagram generation
+//   groqMatch → GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1,2,3 : dedicated for AI Repo Matching
 const groqMain = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const groq1 = new Groq({ apiKey: process.env.GROQ_API_KEY_1 });
 const groq2 = new Groq({ apiKey: process.env.GROQ_API_KEY_2 });
 const groq3 = new Groq({ apiKey: process.env.GROQ_API_KEY_3 });
+const groqArchi1 = new Groq({ apiKey: process.env.GROQ_API_KEY_ARCHI_1 });
+const groqArchi2 = new Groq({ apiKey: process.env.GROQ_API_KEY_ARCHI_2 });
+
+const groqMatch1 = new Groq({ apiKey: process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1 });
+const groqMatch2 = new Groq({ apiKey: process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_2 });
+const groqMatch3 = new Groq({ apiKey: process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_3 });
 
 /** Pick groq1, groq2, or groq3 based on route index (round-robin). */
 function pickSecondaryClient(routeIndex: number): Groq {
@@ -40,6 +48,25 @@ function pickSecondaryClient(routeIndex: number): Groq {
     if (remainder === 0) return groq1;
     if (remainder === 1) return groq2;
     return groq3;
+}
+
+/** Randomly pick between the two dedicated ARCHI keys to load balance diagram generation */
+function pickArchitectureClient(): Groq {
+    // Fallback to main if Archi keys aren't set in environment
+    if (!process.env.GROQ_API_KEY_ARCHI_1) return groqMain;
+
+    return Math.random() > 0.5 ? groqArchi1 : groqArchi2;
+}
+
+/** Round-robin load balancer for Open Source Repo Recommendation generation */
+function pickMatchClient(): Groq {
+    if (!process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1) return groqMain;
+
+    // Simple randomizer to distribute the heavy generation requests
+    const rand = Math.random();
+    if (rand < 0.33) return groqMatch1;
+    if (rand < 0.66) return groqMatch2;
+    return groqMatch3;
 }
 
 /**
@@ -56,13 +83,10 @@ async function callGroqWithErrorHandling(
         if (error?.error?.code === "rate_limit_exceeded" || error?.status === 429) {
             const errorMsg = error?.error?.message || "Rate limit exceeded";
             console.error("[Groq] Rate limit hit:", errorMsg);
-            
-            throw new Error(
-                `Groq API rate limit exceeded. All API keys have reached their daily token limit. ` +
-                `Please try again later or upgrade your Groq plan at https://console.groq.com/settings/billing`
-            );
+
+            throw new Error(`429 RateLimitExhausted: ${errorMsg}`);
         }
-        
+
         // Re-throw other errors
         throw error;
     }
@@ -70,8 +94,6 @@ async function callGroqWithErrorHandling(
 
 // Model to use — llama-3.3-70b-versatile is the best available on Groq's free tier
 const MODEL = "llama-3.3-70b-versatile";
-// Max tokens Groq will return
-const MAX_TOKENS = 8192;
 
 /**
  * Extracts JSON from an LLM response that may be wrapped in markdown code blocks.
@@ -136,6 +158,7 @@ Return ONLY valid JSON — no markdown, no commentary, no explanation outside th
    - Async processing (if any)
 
 2. "architectureJson": A DETAILED, PRODUCTION-LEVEL architecture diagram as JSON.
+   CRITICAL: You are running on a DEDICATED high-capacity API key. You MUST generate an EXTREMELY DETAILED diagram with as many relevant nodes and deep connections as you can find. Don't summarize. Extract the authentic complexity of the system.
 
    CRITICAL REQUIREMENTS - Include ALL these layers if detected:
    
@@ -167,7 +190,7 @@ Return ONLY valid JSON — no markdown, no commentary, no explanation outside th
    - Business rules
    
    🔹 Layer 6: Caching Layer
-   - Redis/Memcached
+   - Redis/Memcached (CRITICAL: DO NOT HALLUCINATE THIS. ONLY include if explicitly found in package.json or code)
    - Cache strategy
    - Session storage
    
@@ -179,11 +202,11 @@ Return ONLY valid JSON — no markdown, no commentary, no explanation outside th
    Node Requirements:
    - Each node MUST have:
        "id"    : unique snake_case string, no spaces
-       "label" : clear, descriptive name with technology (e.g., "Next.js API Routes", "Redis Cache", "MongoDB Database")
+       "label" : highly specific file name, exact route path, or specialized module name (e.g., "app/api/analyze/route.ts", "React Dashboard <Results>", "lib/github.ts", "MongoDB User Schema"). DO NOT USE GENERIC BUCKETS like "React Frontend" or "FastAPI Backend". Be extremely detailed and precise!
        "type"  : one of: frontend | backend | service | database | external | infrastructure
-   - Include 10-20 nodes for a complete picture
+   - Include 25-45 nodes for a highly detailed and granular architectural picture. Extract specific components from the provided files.
    - Group related components logically
-   - Show ALL critical infrastructure
+   - Show ALL critical infrastructure and core route handlers
 
    Edge Requirements:
    - Each edge MUST have:
@@ -196,6 +219,7 @@ Return ONLY valid JSON — no markdown, no commentary, no explanation outside th
    - NO self-loops (from === to is forbidden)
 
    Notes Requirements:
+   - CRITICAL STRICNESS: DO NOT HALLUCINATE INFRASTRUCTURE. If Redis, Memcached, or a specific database is not clearly visible in the code or package.json, DO NOT INCLUDE IT in the nodes, edges, or notes.
    - Include 4-8 architectural observations
    - Mention authentication strategy
    - Mention async processing if present
@@ -249,13 +273,15 @@ ${truncate(fileTreeStr, 4000)}
 ${formatTechStack(techStack)}
 
 ## Key File Contents
-${truncate(keyFilesStr, 18000)}
+${truncate(keyFilesStr, 25000)}
 
 Return ONLY the JSON object.`;
 
-    const response = await callGroqWithErrorHandling(groqMain, {
+    // 5000 max_tokens keeps us under the 12k TPM threshold for the dedicated key
+    const client = pickArchitectureClient();
+    const response = await callGroqWithErrorHandling(client, {
         model: MODEL,
-        max_tokens: MAX_TOKENS,
+        max_tokens: 5000,
         temperature: 0.2,
         stream: false,
         messages: [
@@ -341,7 +367,7 @@ Return ONLY a valid JSON array. No markdown, no explanation outside the JSON arr
 ${formatTechStack(techStack)}
 
 ## Source Files (README + routing files)
-${truncate(sourceStr, 20000)}
+${truncate(sourceStr, 25000)}
 
 ## App Directory Structure (for inference)
 \`\`\`
@@ -366,7 +392,7 @@ Return ONLY the JSON array.`;
 
     const response = await callGroqWithErrorHandling(groqMain, {
         model: MODEL,
-        max_tokens: MAX_TOKENS,
+        max_tokens: 3000,
         temperature: 0.2,
         stream: false,
         messages: [
@@ -412,7 +438,7 @@ Return ONLY a JSON array of strings containing up to a maximum of 10 file paths.
 ${targetRoute}
 
 ### 📂 REPOSITORY FILE PATHS
-${filePaths.join("\n")}
+${truncate(filePaths.join("\n"), 30000)}
 
 Return a JSON array of up to 10 strings representing the exact file paths.`;
 
@@ -446,7 +472,8 @@ Return a JSON array of up to 10 strings representing the exact file paths.`;
 
 export async function analyzeSpecificRoute(
     targetRoute: string,
-    codebaseFiles: string
+    codebaseFiles: string,
+    routeIndex: number = 0
 ): Promise<RouteAnalysisResult> {
     const systemPrompt = `You are an Expert Software Architect and Code Reverser. Your task is to analyze the provided raw codebase and reverse-engineer the exact execution flow for a specific target route.
 
@@ -455,19 +482,20 @@ Analyze the provided files to find exactly where and how TARGET_ROUTE is defined
 DO NOT OUTPUT JSON. Output your analysis STRICTLY using the exact markdown headers below.
 
 ### FLOW_VISUALIZATION
-Provide a Mermaid.js flowchart mapping the chronological execution flow.
-- Use 'graph TD'.
-- Nodes MUST use simple alphanumeric IDs (e.g., A, B, C, N1, N2).
-- Node labels MUST be wrapped in double quotes. Limit labels to strictly file names and function names, e.g., A["routes.js"], B["main()"].
-- RELATIONS MUST ONLY BE simple arrows (e.g., A --> B). Do NOT use text on arrows (like A -- "calls" --> B) as it frequently causes syntax errors.
-- DO NOT use unquoted special characters like parentheses, colons, or dashes inside the node ID or outside the quotes.
-- Example of valid mermaid:
-  \`\`\`mermaid
-  graph TD
-    A["main.py"] --> B["auth.py (signup)"]
-    B --> C["db.py (save_user)"]
-  \`\`\`
-- Wrap the strings in standard markdown mermaid backticks \`\`\`mermaid ... \`\`\`.
+Provide a JSON object representing the execution flow for the ArchitectureDiagram UI.
+- MUST be perfectly valid JSON with no trailing commas.
+- DO NOT wrap in markdown \`\`\`json blocks. Just output raw JSON block.
+- Format:
+{
+  "nodes": [
+    { "id": "A", "label": "routes.js (Frontend)", "type": "frontend" },
+    { "id": "B", "label": "main()", "type": "backend" }
+  ],
+  "edges": [
+    { "from": "A", "to": "B", "label": "calls" }
+  ]
+}
+- "type" MUST be exactly one of: frontend | backend | service | database | external | infrastructure.
 
 ### EXECUTION_TRACE
 Provide a chronological, step-by-step breakdown of the execution flow across the files.
@@ -491,14 +519,16 @@ CRITICAL: DO NOT WRITE OR SUMMARIZE ANY CODE YOURSELF in the Code Snippet sectio
 ${targetRoute}
 
 ### 📂 CODEBASE_FILES
-${truncate(codebaseFiles, 35000)}
+${truncate(codebaseFiles, 28000)}
 
 Output exactly the two headers ### FLOW_VISUALIZATION and ### EXECUTION_TRACE followed by their content.`;
 
-    // Always use the main key for the heavy analysis to get the best quality
-    const response = await callGroqWithErrorHandling(groqMain, {
+    // Distribute load across secondary keys for routing analysis to prevent TPM exhaustion
+    const client = pickSecondaryClient(routeIndex);
+
+    const response = await callGroqWithErrorHandling(client, {
         model: MODEL,
-        max_tokens: MAX_TOKENS,
+        max_tokens: 3000,
         temperature: 0.2,
         stream: false,
         messages: [
@@ -513,12 +543,14 @@ Output exactly the two headers ### FLOW_VISUALIZATION and ### EXECUTION_TRACE fo
         const flowMatch = text.match(/### FLOW_VISUALIZATION\n([\s\S]*?)(?=### EXECUTION_TRACE)/);
         const traceMatch = text.match(/### EXECUTION_TRACE\n([\s\S]*)/);
 
-        let flowVisualization = flowMatch ? flowMatch[1].trim() : "```mermaid\ngraph TD\n  A[\"Failed to extract flowchart\"]\n```";
+        let flowVisualization = flowMatch ? flowMatch[1].trim() : "{}";
         let executionTrace = traceMatch ? traceMatch[1].trim() : "Failed to extract trace from LLM response.";
 
-        // Ensure mermaid wrapping exists if missing in flowVisualization
-        if (flowVisualization && !flowVisualization.includes("```mermaid") && !flowVisualization.includes("Failed")) {
-            flowVisualization = `\`\`\`mermaid\n${flowVisualization}\n\`\`\``;
+        // Clean up any rogue markdown block wrappers from the JSON string
+        if (flowVisualization.startsWith("\`\`\`json")) {
+            flowVisualization = flowVisualization.replace(/^\`\`\`json\n?/, "").replace(/\n?\`\`\`$/, "");
+        } else if (flowVisualization.startsWith("\`\`\`")) {
+            flowVisualization = flowVisualization.replace(/^\`\`\`\n?/, "").replace(/\n?\`\`\`$/, "");
         }
 
         return {
@@ -533,3 +565,351 @@ Output exactly the two headers ### FLOW_VISUALIZATION and ### EXECUTION_TRACE fo
         };
     }
 }
+
+// ─── 3. AI Repository Matcher (Open Source Recommendations) ───────────────
+
+// ─── Interfaces ───────────────────────────────────────────────────────────
+
+export interface DomainAnalysis {
+    domainKey: string;         // e.g. "full-stack-react-node"
+    label: string;             // e.g. "Full Stack (React / Node.js)"
+    primaryLanguage: string;   // e.g. "TypeScript"
+    frameworks: string[];      // e.g. ["react", "nextjs", "prisma"]
+    minStars: number;           // matching the developer's level
+    reasoning: string;         // why this domain matches the user
+}
+
+export interface UserDomainProfile {
+    experienceLevel: "beginner" | "intermediate" | "advanced";
+    hasOpenSourceContributions: boolean;
+    contributionNotes: string;
+    domains: DomainAnalysis[];
+}
+
+export interface RecommendedRepo {
+    name: string;
+    full_name: string;
+    html_url: string;
+    description: string;
+    stars: number;
+    language: string;
+    topics: string[];
+    whyItFits: string;
+    whereToStart: string;
+}
+
+export interface RecommendationCategory {
+    domain: string;
+    label: string;
+    repos: RecommendedRepo[];
+}
+
+// ─── Phase 1: Profile Analyst ─────────────────────────────────────────────
+
+/**
+ * Phase 1: Deeply analyzes the developer's full profile (resume, GitHub repos, 
+ * open-source history) and returns structured domain objects.
+ * 
+ * IMPORTANT: This function NEVER generates GitHub search queries.
+ * It only outputs structured data (language, frameworks, stars threshold).
+ * The backend constructs valid search queries from this output.
+ */
+export async function analyzeProfileForDomains(userProfile: {
+    name?: string;
+    languages: string[];
+    skills: string[];
+    techStack: string[];
+    repos?: Array<{
+        name: string;
+        description?: string;
+        language?: string;
+        topics?: string[];
+        fork?: boolean;
+        html_url?: string;
+    }>;
+    resume?: {
+        careerObjective?: string;
+        skillGroups?: any[];
+        experience?: any[];
+        projects?: any[];
+    };
+    hasOSContributions: boolean; // true if user has contributed to external repos
+}): Promise<UserDomainProfile> {
+    const systemPrompt = `You are an expert developer mentor and open-source career advisor. You will receive a complete developer profile including their GitHub activity, resume, and skills. Your job is to deeply understand what this specific person has built, what their strongest technologies are, and what level of open-source contributor they are ready to be. Return ONLY valid JSON with no markdown.`;
+
+    // Enrich context: list forked repos (signals OSS interest), list their own projects with tech
+    const ownProjects = userProfile.repos?.filter(r => !r.fork).map(r => ({
+        name: r.name,
+        language: r.language,
+        topics: r.topics?.slice(0, 5),
+        description: r.description?.slice(0, 100)
+    }));
+
+    const forkedRepos = userProfile.repos?.filter(r => r.fork).map(r => r.name);
+
+    const userPrompt = `
+Analyze this developer's COMPLETE profile and identify their tech domains, experience level, and contribution readiness.
+
+====== GITHUB PROFILE ======
+Name: ${userProfile.name || "Unknown"}
+Primary Languages (detected from repos): ${userProfile.languages.join(', ') || "None detected"}
+Skills & Tags: ${userProfile.skills.join(', ') || "None"}
+Tech Stack: ${userProfile.techStack.join(', ') || "None"}
+
+Own GitHub Projects (${ownProjects?.length || 0} repos):
+${JSON.stringify(ownProjects?.slice(0, 15) || [], null, 2).slice(0, 3000)}
+
+Forked Repositories (${forkedRepos?.length || 0}):
+${forkedRepos?.slice(0, 10).join(', ') || "None — no forks found"}
+
+Has made open-source contributions to external repos: ${userProfile.hasOSContributions ? "YES" : "NO or unknown"}
+
+====== RESUME DATA ======
+Career Objective: ${userProfile.resume?.careerObjective || "Not provided"}
+
+Skills from Resume:
+${JSON.stringify(userProfile.resume?.skillGroups || [], null, 2).slice(0, 1500)}
+
+Work Experience:
+${JSON.stringify(userProfile.resume?.experience?.map((e: any) => ({
+        company: e.company, role: e.role || e.title,
+        duration: e.duration || e.dates,
+        keyTech: e.technologies || e.skills
+    })) || [], null, 2).slice(0, 2000)}
+
+Resume Projects:
+${JSON.stringify(userProfile.resume?.projects?.map((p: any) => ({
+        name: p.name, tech: p.technologies || p.techStack,
+        description: p.description?.slice(0, 120)
+    })) || [], null, 2).slice(0, 2000)}
+
+====== INSTRUCTIONS ======
+Based on ALL the data above, produce:
+
+1. "experienceLevel": "beginner" | "intermediate" | "advanced"
+   - beginner: mostly tutorial projects, no real-world apps, no contributions
+   - intermediate: has built real projects, but limited OSS experience  
+   - advanced: production experience, open-source contributions, complex architectures
+
+2. "hasOpenSourceContributions": true/false
+   - true only if forked repos exist OR resume mentions OSS contributions
+
+3. "contributionNotes": 1 sentence describing their OSS journey so far (reference specifics)
+
+4. "domains": Exactly 3 tech domains they are strongest in. For each:
+   - "domainKey": slug e.g. "full-stack-typescript"
+   - "label": Human readable e.g. "Full Stack TypeScript (React/Next.js)"
+   - "primaryLanguage": The exact language name e.g. "TypeScript"
+   - "frameworks": Array of 3-5 framework/topic keywords EXACTLY as used in GitHub topics e.g. ["react","nextjs","nodejs","prisma"]
+   - "minStars": number — set based on their level:
+       beginner: 200, intermediate: 500, advanced: 1000
+   - "reasoning": 1 sentence explaining why this domain was chosen, referencing their actual project names
+
+Output ONLY this JSON structure, nothing else:
+{
+  "experienceLevel": "intermediate",
+  "hasOpenSourceContributions": false,
+  "contributionNotes": "...",
+  "domains": [
+    {
+      "domainKey": "full-stack-typescript",
+      "label": "Full Stack TypeScript (React/Next.js)",
+      "primaryLanguage": "TypeScript",
+      "frameworks": ["react", "nextjs", "nodejs", "prisma"],
+      "minStars": 500,
+      "reasoning": "Built 3+ TypeScript React apps including [project name from their profile]"
+    }
+  ]
+}`;
+
+    // Try each match client in order — if all 429, fall through to groqMain as last resort.
+    const clientsToTry = [groqMatch1, groqMatch2, groqMatch3, groqMain];
+    const params = {
+        model: MODEL,
+        max_tokens: 2000,
+        temperature: 0.1,
+        stream: false as const,
+        messages: [
+            { role: "system" as const, content: systemPrompt },
+            { role: "user" as const, content: userPrompt }
+        ]
+    };
+
+    for (let i = 0; i < clientsToTry.length; i++) {
+        try {
+            const response = await callGroqWithErrorHandling(clientsToTry[i], params) as any;
+            const text: string = response.choices[0]?.message?.content ?? "{}";
+            try {
+                return extractJSON<UserDomainProfile>(text);
+            } catch {
+                console.error("[analyzeProfileForDomains] JSON parse failed:", text.slice(0, 300));
+                break; // bad JSON — no point retrying with another key
+            }
+        } catch (err: any) {
+            const isRateLimit = err?.message?.includes("429") || err?.status === 429;
+            if (isRateLimit && i < clientsToTry.length - 1) {
+                console.warn(`[analyzeProfileForDomains] Key ${i + 1} rate-limited, trying next key...`);
+                continue;
+            }
+            console.error(`[analyzeProfileForDomains] Key ${i + 1} failed:`, err?.message);
+            break;
+        }
+    }
+
+    // All clients failed or JSON parse error — build a sensible fallback from detected languages
+    const topLangs = userProfile.languages.slice(0, 3);
+    const lang1 = topLangs[0] || "JavaScript";
+    const lang2 = topLangs[1] || lang1;
+    const lang3 = topLangs[2] || lang1;
+    return {
+        experienceLevel: "intermediate",
+        hasOpenSourceContributions: userProfile.hasOSContributions,
+        contributionNotes: "Profile analysis used language fallback due to LLM unavailability.",
+        domains: [
+            {
+                domainKey: `${lang1.toLowerCase()}-dev`,
+                label: `${lang1} Development`,
+                primaryLanguage: lang1,
+                frameworks: userProfile.skills.slice(0, 4),
+                minStars: 300,
+                reasoning: `Primary language detected from GitHub repos: ${lang1}`
+            },
+            {
+                domainKey: `${lang2.toLowerCase()}-dev-2`,
+                label: `${lang2} Projects`,
+                primaryLanguage: lang2,
+                frameworks: userProfile.techStack.slice(0, 4),
+                minStars: 200,
+                reasoning: `Secondary language detected: ${lang2}`
+            },
+            {
+                domainKey: `${lang3.toLowerCase()}-open-source`,
+                label: `${lang3} Open Source`,
+                primaryLanguage: lang3,
+                frameworks: [],
+                minStars: 150,
+                reasoning: `Tertiary language detected: ${lang3}`
+            }
+        ]
+    };
+}
+
+// ─── Phase 2: Personalizer ────────────────────────────────────────────────
+
+/**
+ * Phase 2: Takes real GitHub repos fetched by the backend and generates 
+ * deeply personalized recommendations referencing the user's actual projects.
+ */
+export async function generateStructuredRecommendations(
+    userProfile: {
+        name?: string;
+        languages: string[];
+        skills: string[];
+        techStack: string[];
+        repos?: any[];
+        resume?: any;
+    },
+    fetchedReposByDomain: Array<{ domain: string; label: string; repos: any[] }>,
+    domainProfile?: UserDomainProfile
+): Promise<RecommendationCategory[]> {
+    const systemPrompt = `You are a senior developer mentor doing 1-on-1 career coaching. You have the developer's complete profile — their actual projects, resume, experience level, and open-source history. You will evaluate a list of real GitHub open-source repositories and make HIGHLY PERSONALIZED recommendations, referencing their actual project names and skills in every single recommendation. Return ONLY raw valid JSON.`;
+
+    // Build rich project context for referencing by name
+    const ownProjectNames = userProfile.repos?.filter(r => !r.fork).map(r => r.name) || [];
+    const resumeProjectNames = userProfile.resume?.projects?.map((p: any) => p.name) || [];
+    const allProjects = [...new Set([...ownProjectNames, ...resumeProjectNames])];
+
+    const userPrompt = `
+====== DEVELOPER PROFILE ======
+Name: ${userProfile.name || "Developer"}
+Experience Level: ${domainProfile?.experienceLevel || "intermediate"}
+Open Source History: ${domainProfile?.contributionNotes || "No prior OSS contributions detected."}
+Has Previous OSS Contributions: ${domainProfile?.hasOpenSourceContributions ? "YES — Give slightly harder challenges" : "NO — Prioritize beginner-friendly repos"}
+
+Primary Languages: ${userProfile.languages.join(', ')}
+Skills: ${userProfile.skills.join(', ')}
+Their GitHub Projects: ${allProjects.slice(0, 10).join(', ') || "None listed"}
+Resume Summary: ${userProfile.resume?.careerObjective?.slice(0, 250) || "Not provided"}
+
+Resume Projects with Tech:
+${JSON.stringify(userProfile.resume?.projects?.map((p: any) => ({
+        name: p.name, tech: p.technologies
+    })) || []).slice(0, 1200)}
+
+====== REPOSITORIES TO EVALUATE ======
+${JSON.stringify(fetchedReposByDomain.map(d => ({
+        domain: d.domain,
+        label: d.label,
+        repos: d.repos.slice(0, 15).map(r => ({
+            full_name: r.full_name,
+            description: r.description,
+            stars: r.stargazers_count,
+            language: r.language,
+            topics: r.topics?.slice(0, 6),
+            open_issues: r.open_issues_count
+        }))
+    }))).slice(0, 15000)}
+
+====== INSTRUCTIONS ======
+For EACH domain, select the BEST 10 repositories for THIS SPECIFIC developer.
+
+Rules:
+1. "whyItFits" MUST reference their actual project/skill names (e.g. "Since you built [ProjectName] using React...")
+2. If they have NO OSS contributions → prioritize repos with many open issues and pick simpler starter repos
+3. If they DO have OSS contributions → recommend more complex, higher-impact repos
+4. "whereToStart" must be concrete and actionable: mention specific tabs, filters, file names they should look for
+5. Sort repos within each category by best fit first
+
+Return ONLY this exact JSON structure:
+{
+  "categories": [
+    {
+      "domain": "domain-key",
+      "label": "Human Readable Label",
+      "repos": [
+        {
+          "name": "repo-name",
+          "full_name": "owner/repo-name",
+          "html_url": "https://github.com/owner/repo-name",
+          "description": "description",
+          "stars": 1234,
+          "language": "TypeScript",
+          "topics": ["react","nextjs"],
+          "whyItFits": "Since you built [their project name] with React, you'll feel at home here...",
+          "whereToStart": "Go to Issues tab → filter label 'good first issue' → look for TypeScript or UI-related tasks"
+        }
+      ]
+    }
+  ]
+}`;
+
+    const client = pickMatchClient();
+    const response = await callGroqWithErrorHandling(client, {
+        model: MODEL,
+        max_tokens: 5000,
+        temperature: 0.2,
+        stream: false,
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+        ]
+    }) as any;
+
+    const text = response.choices[0]?.message?.content ?? "{}";
+    try {
+        const parsed = extractJSON<{ categories: RecommendationCategory[] }>(text);
+        return parsed.categories || [];
+    } catch {
+        console.error("[generateStructuredRecommendations] JSON parse failed:", text.slice(0, 300));
+        return [];
+    }
+}
+
+
+
+
+
+
+
+
+
