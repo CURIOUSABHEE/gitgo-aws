@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { SessionProvider } from '@/components/providers/session-provider'
 import { Toaster } from 'react-hot-toast'
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from "@vercel/analytics/next"
 
 import './globals.css'
 
@@ -39,6 +40,7 @@ export default function RootLayout({
         <SessionProvider>
           {children}
           <SpeedInsights/>
+          <Analytics/>
           <Toaster
             position="top-right"
             toastOptions={{
