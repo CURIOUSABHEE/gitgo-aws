@@ -5,7 +5,7 @@ import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
     Sparkles,
     Loader2,
@@ -24,6 +24,8 @@ import {
     Circle,
     MessageSquare,
     BookOpen,
+    FileText,
+    Upload,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -46,9 +48,12 @@ interface RecommendationCategory {
 }
 
 interface RecommendationMeta {
-    experienceLevel: "beginner" | "intermediate" | "advanced"
+    experienceLevel: "none" | "small" | "good" | "frequent"
     hasOSSContributions: boolean
     contributionNotes: string
+    strengths?: string[]
+    weaknesses?: string[]
+    improvements?: string[]
     isTestProfile: boolean
     testUsername?: string
     generatedAt: string
@@ -78,9 +83,10 @@ const LANGUAGE_COLORS: Record<string, string> = {
 }
 
 const LEVEL_CONFIG = {
-    beginner: { color: "text-green-500", bg: "bg-green-500/10 border-green-500/20", label: "🌱 Beginner" },
-    intermediate: { color: "text-blue-500", bg: "bg-blue-500/10 border-blue-500/20", label: "⚡ Intermediate" },
-    advanced: { color: "text-purple-500", bg: "bg-purple-500/10 border-purple-500/20", label: "🔥 Advanced" },
+    none: { color: "text-green-500", bg: "bg-green-500/10 border-green-500/20", label: "🌱 New to OSS" },
+    small: { color: "text-blue-500", bg: "bg-blue-500/10 border-blue-500/20", label: "⚡ Getting Started" },
+    good: { color: "text-purple-500", bg: "bg-purple-500/10 border-purple-500/20", label: "🚀 Intermediate" },
+    frequent: { color: "text-orange-500", bg: "bg-orange-500/10 border-orange-500/20", label: "🔥 Top Contributor" },
 }
 
 function formatStars(n: number): string {
@@ -301,7 +307,7 @@ function CategorySection({ category }: { category: RecommendationCategory }) {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
                 {category.repos.map((repo, i) => (
-                    <RepoCard key={repo.full_name || i} repo={repo} index={i} />
+                    <RepoCard key={`${repo.full_name}-${i}`} repo={repo} index={i} />
                 ))}
             </div>
         </section>
@@ -338,10 +344,10 @@ function PhaseStepper({ currentPhase }: { currentPhase: PhaseId | null }) {
                             <div
                                 key={phase.id}
                                 className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-all duration-300 ${isActive
-                                        ? "bg-primary/10 border border-primary/30 text-foreground font-medium"
-                                        : isDone
-                                            ? "text-muted-foreground"
-                                            : "text-muted-foreground/40"
+                                    ? "bg-primary/10 border border-primary/30 text-foreground font-medium"
+                                    : isDone
+                                        ? "text-muted-foreground"
+                                        : "text-muted-foreground/40"
                                     }`}
                             >
                                 {isDone ? (
@@ -371,6 +377,7 @@ export default function RecommendationsPage() {
     const [error, setError] = useState<string | null>(null)
     const [testUrl, setTestUrl] = useState("")
     const [isTestMode, setIsTestMode] = useState(false)
+    const [showResumePrompt, setShowResumePrompt] = useState(false)
 
     const generateRecommendations = async (useTestUrl?: string) => {
         setLoading(true)
@@ -431,9 +438,28 @@ export default function RecommendationsPage() {
         }
     }
 
-    const handleMyProfile = () => {
+    const handleMyProfile = async () => {
         setIsTestMode(false)
         setTestUrl("")
+
+        try {
+            setLoading(true)
+            const res = await fetch("/api/user/profile")
+            const data = await res.json()
+            if (data?.user && !data.user.resumeFileName) {
+                setLoading(false)
+                setShowResumePrompt(true)
+                return
+            }
+        } catch (err) {
+            console.error(err)
+        }
+
+        generateRecommendations()
+    }
+
+    const continueWithoutResume = () => {
+        setShowResumePrompt(false)
         generateRecommendations()
     }
 
@@ -519,6 +545,39 @@ export default function RecommendationsPage() {
                     </div>
                 </div>
 
+                {/* Resume Prompt Modal */}
+                {showResumePrompt && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+                        <Card className="w-full max-w-md shadow-lg border-primary/20">
+                            <CardHeader>
+                                <CardTitle className=" flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-primary" />
+                                    Missing Resume
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    We notice you haven't uploaded a resume. Adding your resume allows our AI to personalize open-source recommendations based on your work experience and specific tech combinations!
+                                </p>
+                                <div className="flex flex-col gap-2">
+                                    <Link href="/dashboard/portfolio">
+                                        <Button className="w-full gap-2">
+                                            <Upload className="h-4 w-4" />
+                                            Upload Resume Now
+                                        </Button>
+                                    </Link>
+                                    <Button variant="outline" onClick={continueWithoutResume} className="w-full">
+                                        Continue without resume
+                                    </Button>
+                                    <Button variant="ghost" onClick={() => setShowResumePrompt(false)} className="w-full mt-2">
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
                 {/* Error */}
                 {error && (
                     <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive">
@@ -535,34 +594,72 @@ export default function RecommendationsPage() {
 
                 {/* Developer Profile Summary */}
                 {meta && !loading && (
-                    <div className={`flex flex-wrap items-center gap-4 rounded-xl border p-4 ${levelConfig?.bg}`}>
-                        {meta.isTestProfile && (
-                            <div className="flex items-center gap-1.5 text-sm text-amber-600 font-medium">
-                                <FlaskConical className="h-4 w-4" />
-                                Testing: @{meta.testUsername}
+                    <div className={`flex flex-col gap-4 rounded-xl border p-4 ${levelConfig?.bg}`}>
+                        <div className="flex flex-wrap items-center gap-4">
+                            {meta.isTestProfile && (
+                                <div className="flex items-center gap-1.5 text-sm text-amber-600 font-medium">
+                                    <FlaskConical className="h-4 w-4" />
+                                    Testing: @{meta.testUsername}
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Experience:</span>
+                                <span className={`text-sm font-semibold ${levelConfig?.color}`}>{levelConfig?.label}</span>
                             </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Experience:</span>
-                            <span className={`text-sm font-semibold ${levelConfig?.color}`}>{levelConfig?.label}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">OSS History:</span>
-                            <span className="text-xs font-medium text-foreground">{meta.hasOSSContributions ? "✅ Prior contributions detected" : "🆕 New to open source"}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">OSS History:</span>
+                                <span className="text-xs font-medium text-foreground">{meta.hasOSSContributions ? "✅ Prior contributions detected" : "🆕 New to open source"}</span>
+                            </div>
+                            <Button
+                                onClick={() => isTestMode ? handleTestProfile() : handleMyProfile()}
+                                disabled={loading}
+                                variant="ghost"
+                                size="sm"
+                                className="ml-auto gap-1.5 h-7 text-xs"
+                            >
+                                <RefreshCw className="h-3 w-3" />
+                                Regenerate
+                            </Button>
                         </div>
                         {meta.contributionNotes && (
                             <p className="text-xs text-muted-foreground italic w-full">{meta.contributionNotes}</p>
                         )}
-                        <Button
-                            onClick={() => isTestMode ? handleTestProfile() : handleMyProfile()}
-                            disabled={loading}
-                            variant="ghost"
-                            size="sm"
-                            className="ml-auto gap-1.5 h-7 text-xs"
-                        >
-                            <RefreshCw className="h-3 w-3" />
-                            Regenerate
-                        </Button>
+
+                        {/* Analysis Grid */}
+                        {((meta.strengths?.length ?? 0) > 0 || (meta.weaknesses?.length ?? 0) > 0 || (meta.improvements?.length ?? 0) > 0) && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-border/50">
+                                {(meta.strengths?.length ?? 0) > 0 && (
+                                    <div className="space-y-1.5">
+                                        <h4 className="text-xs font-semibold text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                                            <CheckCircle2 className="h-3.5 w-3.5" /> Strengths
+                                        </h4>
+                                        <ul className="text-[11.5px] space-y-1 text-muted-foreground leading-snug pl-1">
+                                            {(meta as any).strengths.map((s: string, i: number) => <li key={i}>• {s}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+                                {(meta as any).weaknesses?.length > 0 && (
+                                    <div className="space-y-1.5">
+                                        <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                            <AlertCircle className="h-3.5 w-3.5" /> Areas to Grow
+                                        </h4>
+                                        <ul className="text-[11.5px] space-y-1 text-muted-foreground leading-snug pl-1">
+                                            {(meta as any).weaknesses.map((w: string, i: number) => <li key={i}>• {w}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+                                {(meta as any).improvements?.length > 0 && (
+                                    <div className="space-y-1.5">
+                                        <h4 className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                                            <Sparkles className="h-3.5 w-3.5" /> Next Steps
+                                        </h4>
+                                        <ul className="text-[11.5px] space-y-1 text-muted-foreground leading-snug pl-1">
+                                            {(meta as any).improvements.map((imp: string, i: number) => <li key={i}>• {imp}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 

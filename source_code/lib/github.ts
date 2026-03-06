@@ -679,3 +679,53 @@ export async function getFilteredIssues(
     return []
   }
 }
+
+export async function fetchRepoReadme(owner: string, repo: string, token?: string): Promise<string | null> {
+  try {
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3.raw",
+    }
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`
+    }
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
+      headers,
+    })
+    if (res.ok) {
+      return await res.text()
+    }
+    return null
+  } catch (error) {
+    console.error(`Failed to fetch readme for ${owner}/${repo}:`, error)
+    return null
+  }
+}
+
+export async function fetchRepoContributing(owner: string, repo: string, token?: string): Promise<string | null> {
+  try {
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3.raw",
+    }
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`
+    }
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/CONTRIBUTING.md`, {
+      headers,
+    })
+    if (res.ok) {
+      return await res.text()
+    }
+
+    // try lowercase
+    const resLower = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/contributing.md`, {
+      headers,
+    })
+    if (resLower.ok) {
+      return await resLower.text()
+    }
+    return null
+  } catch (error) {
+    console.error(`Failed to fetch contributing for ${owner}/${repo}:`, error)
+    return null
+  }
+}
