@@ -31,42 +31,106 @@ function formatTechStack(techStack: TechStack): string {
 //   groq3     → GROQ_API_KEY_3 : file-identification for routes (index % 3 === 2)
 //   groqArchi → GROQ_API_KEY_ARCHI_1 & 2 : dedicated for large architecture diagram generation
 //   groqMatch → GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1,2,3 : dedicated for AI Repo Matching
-const groqMain = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const groq1 = new Groq({ apiKey: process.env.GROQ_API_KEY_1 });
-const groq2 = new Groq({ apiKey: process.env.GROQ_API_KEY_2 });
-const groq3 = new Groq({ apiKey: process.env.GROQ_API_KEY_3 });
-const groqArchi1 = new Groq({ apiKey: process.env.GROQ_API_KEY_ARCHI_1 });
-const groqArchi2 = new Groq({ apiKey: process.env.GROQ_API_KEY_ARCHI_2 });
 
-const groqMatch1 = new Groq({ apiKey: process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1 });
-const groqMatch2 = new Groq({ apiKey: process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_2 });
-const groqMatch3 = new Groq({ apiKey: process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_3 });
+// Lazy-load clients to avoid build-time errors when env vars are missing
+let groqMain: Groq | null = null;
+let groq1: Groq | null = null;
+let groq2: Groq | null = null;
+let groq3: Groq | null = null;
+let groqArchi1: Groq | null = null;
+let groqArchi2: Groq | null = null;
+let groqMatch1: Groq | null = null;
+let groqMatch2: Groq | null = null;
+let groqMatch3: Groq | null = null;
+
+function getGroqMain(): Groq {
+    if (!groqMain) {
+        groqMain = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+    }
+    return groqMain;
+}
+
+function getGroq1(): Groq {
+    if (!groq1) {
+        groq1 = new Groq({ apiKey: process.env.GROQ_API_KEY_1 || process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+    }
+    return groq1;
+}
+
+function getGroq2(): Groq {
+    if (!groq2) {
+        groq2 = new Groq({ apiKey: process.env.GROQ_API_KEY_2 || process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+    }
+    return groq2;
+}
+
+function getGroq3(): Groq {
+    if (!groq3) {
+        groq3 = new Groq({ apiKey: process.env.GROQ_API_KEY_3 || process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+    }
+    return groq3;
+}
+
+function getGroqArchi1(): Groq {
+    if (!groqArchi1) {
+        groqArchi1 = new Groq({ apiKey: process.env.GROQ_API_KEY_ARCHI_1 || process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+    }
+    return groqArchi1;
+}
+
+function getGroqArchi2(): Groq {
+    if (!groqArchi2) {
+        groqArchi2 = new Groq({ apiKey: process.env.GROQ_API_KEY_ARCHI_2 || process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+    }
+    return groqArchi2;
+}
+
+function getGroqMatch1(): Groq {
+    if (!groqMatch1) {
+        groqMatch1 = new Groq({ apiKey: process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1 || process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+    }
+    return groqMatch1;
+}
+
+function getGroqMatch2(): Groq {
+    if (!groqMatch2) {
+        groqMatch2 = new Groq({ apiKey: process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_2 || process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+    }
+    return groqMatch2;
+}
+
+function getGroqMatch3(): Groq {
+    if (!groqMatch3) {
+        groqMatch3 = new Groq({ apiKey: process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_3 || process.env.GROQ_API_KEY || 'dummy-key-for-build' });
+    }
+    return groqMatch3;
+}
 
 /** Pick groq1, groq2, or groq3 based on route index (round-robin). */
 function pickSecondaryClient(routeIndex: number): Groq {
     const remainder = routeIndex % 3;
-    if (remainder === 0) return groq1;
-    if (remainder === 1) return groq2;
-    return groq3;
+    if (remainder === 0) return getGroq1();
+    if (remainder === 1) return getGroq2();
+    return getGroq3();
 }
 
 /** Randomly pick between the two dedicated ARCHI keys to load balance diagram generation */
 function pickArchitectureClient(): Groq {
     // Fallback to main if Archi keys aren't set in environment
-    if (!process.env.GROQ_API_KEY_ARCHI_1) return groqMain;
+    if (!process.env.GROQ_API_KEY_ARCHI_1) return getGroqMain();
 
-    return Math.random() > 0.5 ? groqArchi1 : groqArchi2;
+    return Math.random() > 0.5 ? getGroqArchi1() : getGroqArchi2();
 }
 
 /** Round-robin load balancer for Open Source Repo Recommendation generation */
 function pickMatchClient(): Groq {
-    if (!process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1) return groqMain;
+    if (!process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1) return getGroqMain();
 
     // Simple randomizer to distribute the heavy generation requests
     const rand = Math.random();
-    if (rand < 0.33) return groqMatch1;
-    if (rand < 0.66) return groqMatch2;
-    return groqMatch3;
+    if (rand < 0.33) return getGroqMatch1();
+    if (rand < 0.66) return getGroqMatch2();
+    return getGroqMatch3();
 }
 
 /**
