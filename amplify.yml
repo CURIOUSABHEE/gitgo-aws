@@ -21,7 +21,6 @@ frontend:
         - echo "GITGO_AWS_REGION=$GITGO_AWS_REGION" >> .env.production
         - echo "GITGO_EXECUTION_MODE=$GITGO_EXECUTION_MODE" >> .env.production
         - echo "GITGO_S3_BUCKET_NAME=$GITGO_S3_BUCKET_NAME" >> .env.production
-        - echo "API_GATEWAY_URL=$API_GATEWAY_URL" >> .env.production
         - echo "GROQ_API_KEY=$GROQ_API_KEY" >> .env.production
         - echo "GROQ_API_KEY_1=$GROQ_API_KEY_1" >> .env.production
         - echo "GROQ_API_KEY_2=$GROQ_API_KEY_2" >> .env.production

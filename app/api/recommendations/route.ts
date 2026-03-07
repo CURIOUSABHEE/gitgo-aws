@@ -76,27 +76,8 @@ export async function POST(req: NextRequest) {
             const send = (data: object) => controller.enqueue(sseChunk(data))
 
             try {
-                // ─── AWS Lambda execution bypass ─────────────────────────────────────
-                if (process.env.AWS_EXECUTION_MODE === 'lambda') {
-                    if (!process.env.API_GATEWAY_URL) {
-                        send({ type: "error", error: "API_GATEWAY_URL missing in AWS configuration." });
-                        controller.close();
-                        return;
-                    }
-                    console.log("[Recommendations] AWS Mode: Deferring to Lambda via API Gateway");
-                    send({ type: "phase", phase: "processing_in_background" });
-
-                    // Forward the payload to Lambda and immediately return to the client
-                    fetch(process.env.API_GATEWAY_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    }).catch(err => console.error("Lambda trigger failed:", err));
-
-                    send({ type: "queued", message: "Analysis running in background. Polling for results." });
-                    controller.close();
-                    return;
-                }
+                // Note: AWS Amplify handles Lambda execution automatically
+                // No need for manual API Gateway forwarding
 
                 const session = await getServerSession(authOptions)
                 // In test mode, we might not need a strict matching githubId if we are just testing
