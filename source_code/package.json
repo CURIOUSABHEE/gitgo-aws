@@ -11,6 +11,9 @@
     "test:pipeline": "tsx scripts/test-repo-pipeline.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1004.0",
+    "@aws-sdk/client-s3": "^3.1004.0",
+    "@aws-sdk/lib-dynamodb": "^3.1004.0",
     "@dagrejs/dagre": "^2.0.4",
     "@hookform/resolvers": "^3.9.1",
     "@octokit/rest": "^22.0.1",
@@ -82,13 +85,13 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",
-    "@types/node": "^22",
+    "@types/node": "^22.19.15",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
-    "typescript": "5.7.3"
+    "typescript": "^5.7.3"
   },
   "pnpm": {
     "overrides": {

@@ -566,9 +566,12 @@ export interface DomainAnalysis {
 }
 
 export interface UserDomainProfile {
-    experienceLevel: "beginner" | "intermediate" | "advanced";
+    experienceLevel: "none" | "small" | "good" | "frequent";
     hasOpenSourceContributions: boolean;
     contributionNotes: string;
+    strengths: string[];
+    weaknesses: string[];
+    improvements: string[];
     domains: DomainAnalysis[];
 }
 
@@ -672,23 +675,28 @@ ${JSON.stringify(userProfile.resume?.projects?.map((p: any) => ({
 ====== INSTRUCTIONS ======
 Based on ALL the data above, produce:
 
-1. "experienceLevel": "beginner" | "intermediate" | "advanced"
-   - beginner: mostly tutorial projects, no real-world apps, no contributions
-   - intermediate: has built real projects, but limited OSS experience  
-   - advanced: production experience, open-source contributions, complex architectures
+1. "experienceLevel": "none" | "small" | "good" | "frequent"
+   - none: no prior open-source contributions, beginner to OSS workflow
+   - small: has done 1-2 small open-source contributions, familiar with basic workflow
+   - good: has done some good open-source contributions, knows how to approach issues well
+   - frequent: contributes to open-source frequently, highly experienced
 
 2. "hasOpenSourceContributions": true/false
    - true only if forked repos exist OR resume mentions OSS contributions
 
 3. "contributionNotes": 1 sentence describing their OSS journey so far (reference specifics)
 
-4. "domains": Exactly 3 tech domains they are strongest in. For each:
+4. "strengths": Array of 3 short strings highlighting their best tech choices or practices based on their repos/resume.
+5. "weaknesses": Array of 2 short strings pointing out missing skills (e.g. "No testing frameworks detected", "Light on backend experience").
+6. "improvements": Array of 2 actionable suggestions for what they should build or learn next to level up.
+
+7. "domains": Exactly 3 tech domains they are strongest in. For each:
    - "domainKey": slug e.g. "full-stack-typescript"
    - "label": Human readable e.g. "Full Stack TypeScript (React/Next.js)"
    - "primaryLanguage": The exact language name e.g. "TypeScript"
    - "frameworks": Array of 3-5 framework/topic keywords EXACTLY as used in GitHub topics e.g. ["react","nextjs","nodejs","prisma"]
    - "minStars": number — set based on their level:
-       beginner: 200, intermediate: 500, advanced: 1000
+       none: 100, small: 250, good: 500, frequent: 1000
    - "reasoning": 1 sentence explaining why this domain was chosen, referencing their actual project names
 
 Output ONLY this JSON structure, nothing else:
@@ -696,6 +704,9 @@ Output ONLY this JSON structure, nothing else:
   "experienceLevel": "intermediate",
   "hasOpenSourceContributions": false,
   "contributionNotes": "...",
+  "strengths": ["Strong React and Next.js frontend skills", "Experience with modern ORMs like Prisma"],
+  "weaknesses": ["Lack of visible unit testing", "Limited backend API exposure"],
+  "improvements": ["Contribute to a project with Jest/Cypress testing", "Explore backend performance optimization"],
   "domains": [
     {
       "domainKey": "full-stack-typescript",
@@ -704,6 +715,14 @@ Output ONLY this JSON structure, nothing else:
       "frameworks": ["react", "nextjs", "nodejs", "prisma"],
       "minStars": 500,
       "reasoning": "Built 3+ TypeScript React apps including [project name from their profile]"
+    },
+    {
+      "domainKey": "machine-learning-python",
+      "label": "Machine Learning (Python)",
+      "primaryLanguage": "Python",
+      "frameworks": ["scikit-learn", "pandas", "numpy", "tensorflow"],
+      "minStars": 500,
+      "reasoning": "Developed predictive models in Python as seen in [project name]"
     }
   ]
 }`;
@@ -748,9 +767,12 @@ Output ONLY this JSON structure, nothing else:
     const lang2 = topLangs[1] || lang1;
     const lang3 = topLangs[2] || lang1;
     return {
-        experienceLevel: "intermediate",
+        experienceLevel: "good",
         hasOpenSourceContributions: userProfile.hasOSContributions,
         contributionNotes: "Profile analysis used language fallback due to LLM unavailability.",
+        strengths: ["Shows initiative by pushing code to GitHub", `Familiarity with ${lang1} and ${lang2}`],
+        weaknesses: ["Unable to perform deep analysis at this time"],
+        improvements: ["Continue building projects and pushing to GitHub", "Explore more diverse tech stacks"],
         domains: [
             {
                 domainKey: `${lang1.toLowerCase()}-dev`,
@@ -783,10 +805,10 @@ Output ONLY this JSON structure, nothing else:
 // ─── Phase 2: Personalizer ────────────────────────────────────────────────
 
 /**
- * Phase 2: Takes real GitHub repos fetched by the backend and generates 
- * deeply personalized recommendations referencing the user's actual projects.
+ * Phase 2: Uses the LLM's vast internal knowledge of GitHub to generate an expert curated
+ * list of repository "owner/repo" names tailored to the user's specific tech stack and experience level.
  */
-export async function generateStructuredRecommendations(
+export async function generateExpertCuratedRepos(
     userProfile: {
         name?: string;
         languages: string[];
@@ -795,10 +817,10 @@ export async function generateStructuredRecommendations(
         repos?: any[];
         resume?: any;
     },
-    fetchedReposByDomain: Array<{ domain: string; label: string; repos: any[] }>,
-    domainProfile?: UserDomainProfile
+    domainProfile: UserDomainProfile,
+    randomSeed?: string
 ): Promise<RecommendationCategory[]> {
-    const systemPrompt = `You are a senior developer mentor doing 1-on-1 career coaching. You have the developer's complete profile — their actual projects, resume, experience level, and open-source history. You will evaluate a list of real GitHub open-source repositories and make HIGHLY PERSONALIZED recommendations, referencing their actual project names and skills in every single recommendation. Return ONLY raw valid JSON.`;
+    const systemPrompt = `You are a senior developer mentor doing 1-on-1 career coaching. You possess encyclopedic knowledge of all open-source repositories on GitHub across all languages (React, Python, Machine Learning, Systems, etc). You are tasked with generating a master curriculum of exactly 10 repositories per tech domain that the developer should contribute to. Return ONLY raw valid JSON.`;
 
     // Build rich project context for referencing by name
     const ownProjectNames = userProfile.repos?.filter(r => !r.fork).map(r => r.name) || [];
@@ -808,9 +830,9 @@ export async function generateStructuredRecommendations(
     const userPrompt = `
 ====== DEVELOPER PROFILE ======
 Name: ${userProfile.name || "Developer"}
-Experience Level: ${domainProfile?.experienceLevel || "intermediate"}
-Open Source History: ${domainProfile?.contributionNotes || "No prior OSS contributions detected."}
-Has Previous OSS Contributions: ${domainProfile?.hasOpenSourceContributions ? "YES — Give slightly harder challenges" : "NO — Prioritize beginner-friendly repos"}
+Experience Level: ${domainProfile.experienceLevel}
+Open Source History: ${domainProfile.contributionNotes || "No prior OSS contributions detected."}
+Has Previous OSS Contributions: ${domainProfile.hasOpenSourceContributions ? "YES" : "NO"}
 
 Primary Languages: ${userProfile.languages.join(', ')}
 Skills: ${userProfile.skills.join(', ')}
@@ -822,58 +844,62 @@ ${JSON.stringify(userProfile.resume?.projects?.map((p: any) => ({
         name: p.name, tech: p.technologies
     })) || []).slice(0, 1200)}
 
-====== REPOSITORIES TO EVALUATE ======
-${JSON.stringify(fetchedReposByDomain.map(d => ({
-        domain: d.domain,
-        label: d.label,
-        repos: d.repos.slice(0, 15).map(r => ({
-            full_name: r.full_name,
-            description: r.description,
-            stars: r.stargazers_count,
-            language: r.language,
-            topics: r.topics?.slice(0, 6),
-            open_issues: r.open_issues_count
-        }))
-    }))).slice(0, 15000)}
+====== TECH DOMAINS TO CURATE ======
+${JSON.stringify(domainProfile.domains, null, 2)}
+
+${randomSeed ? `====== RANDOMIZATION SEED ======\nTo ensure variety upon regeneration, use this seed: "${randomSeed}". Do NOT recommend the exact same most popular repositories. Dig deeper into the GitHub ecosystem to find high-quality alternative matches that fit this seed's variation.\n` : ""}
 
 ====== INSTRUCTIONS ======
-For EACH domain, select the BEST 10 repositories for THIS SPECIFIC developer.
+You must act as a personalized open-source matchmaker. 
+For EACH of the tech domains listed above, you MUST recommend EXACTLY 10 open-source repositories from GitHub that perfectly fit their profile and experience level.
 
-Rules:
-1. "whyItFits" MUST reference their actual project/skill names (e.g. "Since you built [ProjectName] using React...")
-2. If they have NO OSS contributions → prioritize repos with many open issues and pick simpler starter repos
-3. If they DO have OSS contributions → recommend more complex, higher-impact repos
-4. "whereToStart" must be concrete and actionable: mention specific tabs, filters, file names they should look for
-5. Sort repos within each category by best fit first
+CRITICAL ADAPTATION FOR USER EXPERIENCE LEVEL:
+The developer's experience level is: "${domainProfile.experienceLevel}". 
+You MUST pick the right repositories based strictly on this level.
+- If "none" (New to OSS): START the list with pure workflow Repos (like "firstcontributions/first-contributions"), then move to hyper-welcoming UI communities (like "EddieHubCommunity/BioDrop" or "freeCodeCamp/freeCodeCamp"), then graduate to real products matching their exact stack (e.g. "usebruno/bruno" or "novuhq/novu"). Do NOT recommend giant monoliths like "vercel/next.js" or "mrdoob/three.js" as their first issues! Sequence them from absolute easiest to hardest.
+- If "small" (Getting Started): Skip the basic workflow repos. Start with well-known welcoming repos and graduate them to mid-tier fullstack applications.
+- If "good" (Intermediate): Focus on mid-to-large projects that leverage their specialized skills. Include some advanced stretch goals.
+- If "frequent" (Top Contributor): Focus exclusively on Advanced/Ecosystem contributions (mega-frameworks, complex architecture, large monorepos).
+
+CRITICAL ANTI-PATTERNS TO AVOID:
+1. DEPRECATED OR UNMAINTAINED: NEVER recommend deprecated, unmaintained, or dying projects (e.g., "facebook/create-react-app", "jaredpalmer/formik").
+2. INTIMIDATING MONOLITHS: NEVER recommend the core repositories of massive frameworks to beginners (e.g., "reactjs/react.dev", "facebook/react", "vercel/next.js", "styled-components").
+3. TEXTBOOKS/TUTORIALS: For Machine Learning, NEVER recommend textbooks, course materials, or markdown-heavy tutorial repos (e.g., "rasbt/python-machine-learning-book", "microsoft/ML-For-Beginners"). ONLY recommend actual software infrastructure or tooling.
+4. C++ ML ENGINES FOR BEGINNERS: For Machine Learning beginners, NEVER recommend massive C++ backend engines with Python wrappers like "tensorflow/tensorflow", "pytorch/pytorch", or "dmlc/dmlc-core". Stick to pure Python ML tooling, ecosystem libraries, or widely used MLOps tools (e.g., "scikit-learn/scikit-learn", "huggingface/transformers", "optuna/optuna", "gradio-app/gradio").
+
+CRITICAL CONSTRAINTS & RULES:
+1. DOMAIN SEGREGATION: You MUST preserve the exact 'domainKey' and 'label' for each of the provided domains (e.g. "Full Stack JavaScript", "Machine Learning"). 
+2. EXACTLY 10 REPOS: For EVERY domain, you MUST output EXACTLY 10 repos. Pick from your internal knowledge of GitHub.
+3. ACCURATE REPO NAMES: Ensure the "full_name" is the exact actual GitHub owner/repo identifier (e.g. "scikit-learn/scikit-learn").
+4. PERSONALIZED REASONING: "whyItFits" MUST reference their actual project names, specific skills, or resume details. Connect their background directly to why this repo works for them (e.g. "Because you built EcoPlus using React, you'll feel at home here...").
+5. ACTIONABLE ADVICE: "whereToStart" must be concrete and actionable: mention specific issue labels, folders, or steps to take.
 
 Return ONLY this exact JSON structure:
 {
   "categories": [
     {
-      "domain": "domain-key",
-      "label": "Human Readable Label",
+      "domain": "original-domainKey",
+      "label": "Original Domain Label",
       "repos": [
         {
-          "name": "repo-name",
           "full_name": "owner/repo-name",
-          "html_url": "https://github.com/owner/repo-name",
-          "description": "description",
-          "stars": 1234,
-          "language": "TypeScript",
-          "topics": ["react","nextjs"],
           "whyItFits": "Since you built [their project name] with React, you'll feel at home here...",
-          "whereToStart": "Go to Issues tab → filter label 'good first issue' → look for TypeScript or UI-related tasks"
+          "whereToStart": "Go to Issues tab → filter label 'good first issue'"
         }
       ]
     }
   ]
-}`;
+}
+`;
+
+    // Increase randomness if user pressed 'Regenerate'
+    const finalTemperature = randomSeed ? 0.7 : 0.2;
 
     const client = pickMatchClient();
     const response = await callGroqWithErrorHandling(client, {
         model: MODEL,
         max_tokens: 5000,
-        temperature: 0.2,
+        temperature: finalTemperature,
         stream: false,
         messages: [
             { role: "system", content: systemPrompt },
