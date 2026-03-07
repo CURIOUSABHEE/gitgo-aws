@@ -3,8 +3,6 @@ frontend:
   phases:
     preBuild:
       commands:
-        # Change to source_code directory
-        - cd source_code
         # Install dependencies
         - npm ci
         
@@ -27,15 +25,14 @@ frontend:
         
     build:
       commands:
-        - cd source_code
         - npm run build
         
   artifacts:
-    baseDirectory: source_code/.next
+    baseDirectory: .next
     files:
       - '**/*'
       
   cache:
     paths:
-      - source_code/node_modules/**/*
-      - source_code/.next/cache/**/*
+      - node_modules/**/*
+      - .next/cache/**/*
