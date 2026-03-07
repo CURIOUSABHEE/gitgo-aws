@@ -21,15 +21,7 @@ frontend:
         - echo "GITGO_AWS_REGION=$GITGO_AWS_REGION" >> .env.production
         - echo "GITGO_EXECUTION_MODE=$GITGO_EXECUTION_MODE" >> .env.production
         - echo "GITGO_S3_BUCKET_NAME=$GITGO_S3_BUCKET_NAME" >> .env.production
-        - echo "GROQ_API_KEY=$GROQ_API_KEY" >> .env.production
-        - echo "GROQ_API_KEY_1=$GROQ_API_KEY_1" >> .env.production
-        - echo "GROQ_API_KEY_2=$GROQ_API_KEY_2" >> .env.production
-        - echo "GROQ_API_KEY_3=$GROQ_API_KEY_3" >> .env.production
-        - echo "GROQ_API_KEY_ARCHI_1=$GROQ_API_KEY_ARCHI_1" >> .env.production
-        - echo "GROQ_API_KEY_ARCHI_2=$GROQ_API_KEY_ARCHI_2" >> .env.production
-        - echo "GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1=$GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1" >> .env.production
-        - echo "GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_2=$GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_2" >> .env.production
-        - echo "GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_3=$GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_3" >> .env.production
+        - echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env.production
         
     build:
       commands:

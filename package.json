@@ -15,10 +15,12 @@
     "test:pipeline": "tsx scripts/test-repo-pipeline.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1004.0",
     "@aws-sdk/client-dynamodb": "^3.1004.0",
     "@aws-sdk/client-s3": "^3.1004.0",
     "@aws-sdk/lib-dynamodb": "^3.1004.0",
     "@dagrejs/dagre": "^2.0.4",
+    "@google/generative-ai": "^0.21.0",
     "@hookform/resolvers": "^3.9.1",
     "@octokit/rest": "^22.0.1",
     "@radix-ui/react-accordion": "1.2.2",
