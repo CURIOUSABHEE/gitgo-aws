@@ -1,4 +1,7 @@
 import { NextRequest } from "next/server"
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { connectDB } from "@/lib/mongodb"
@@ -8,6 +11,7 @@ import Recommendation from "@/models/Recommendation"
 import { analyzeProfileForDomains, generateExpertCuratedRepos, UserDomainProfile } from "@/lib/llm"
 import { getRepoMetadata, fetchPublicGitHubProfile, fetchRepoReadme, fetchRepoContributing } from "@/lib/github"
 import { UserService } from "@/lib/services/user-service"
+import { RecommendationRepository } from "@/lib/db/RecommendationRepository"
 
 /**
  * Builds valid GitHub repository search strings from domain analysis output.
@@ -65,13 +69,35 @@ function sseChunk(data: object): Uint8Array {
 
 export async function POST(req: NextRequest) {
     const body = await req.json()
-    const { testGithubUrl } = body
+    const { testGithubUrl, regenerate } = body
 
     const stream = new ReadableStream({
         async start(controller) {
             const send = (data: object) => controller.enqueue(sseChunk(data))
 
             try {
+                // ─── AWS Lambda execution bypass ─────────────────────────────────────
+                if (process.env.AWS_EXECUTION_MODE === 'lambda') {
+                    if (!process.env.API_GATEWAY_URL) {
+                        send({ type: "error", error: "API_GATEWAY_URL missing in AWS configuration." });
+                        controller.close();
+                        return;
+                    }
+                    console.log("[Recommendations] AWS Mode: Deferring to Lambda via API Gateway");
+                    send({ type: "phase", phase: "processing_in_background" });
+
+                    // Forward the payload to Lambda and immediately return to the client
+                    fetch(process.env.API_GATEWAY_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    }).catch(err => console.error("Lambda trigger failed:", err));
+
+                    send({ type: "queued", message: "Analysis running in background. Polling for results." });
+                    controller.close();
+                    return;
+                }
+
                 const session = await getServerSession(authOptions)
                 // In test mode, we might not need a strict matching githubId if we are just testing
                 if (!session?.user?.githubId && !testGithubUrl) {
@@ -224,9 +250,12 @@ export async function POST(req: NextRequest) {
                 send({ type: "phase", phase: "curating" })
                 console.log(`[Recommendations] Phase 2: LLM Curating Repositories...`)
 
+                // If user clicked 'Regenerate', pass a random seed to the LLM to get a fresh batch of repos
+                const randomSeed = regenerate ? Date.now().toString() + Math.random().toString() : undefined;
+
                 let categories: any[] = []
                 try {
-                    categories = await generateExpertCuratedRepos(userProfile, domainProfile)
+                    categories = await generateExpertCuratedRepos(userProfile, domainProfile, randomSeed)
                 } catch (err) {
                     console.error("[Recommendations] Phase 2 failed:", err)
                     send({ type: "error", error: "Curriculum generation failed. Please try again." })
@@ -283,9 +312,9 @@ export async function POST(req: NextRequest) {
                     return
                 }
 
-                // ─── Save to MongoDB ────────────────────────────────────────────────
+                // ─── Save to Database (Dual Mode: MongoDB or DynamoDB) ──────────────
                 try {
-                    await Recommendation.create({
+                    await RecommendationRepository.save({
                         userId: userProfile.isTestProfile ? undefined : (user as any)?._id,
                         githubId: userProfile.isTestProfile ? undefined : Number(session?.user?.githubId),
                         experienceLevel: domainProfile.experienceLevel,
@@ -298,9 +327,9 @@ export async function POST(req: NextRequest) {
                         isTestProfile: userProfile.isTestProfile || false,
                         testUsername: userProfile.testUsername,
                     })
-                    console.log(`[Recommendations] Successfully saved to MongoDB`)
+                    console.log(`[Recommendations] Successfully saved to database`)
                 } catch (saveError) {
-                    console.error("[Recommendations] Failed to save to MongoDB:", saveError)
+                    console.error("[Recommendations] Failed to save to database:", saveError)
                 }
 
                 // ─── Emit final result ────────────────────────────────────────────────

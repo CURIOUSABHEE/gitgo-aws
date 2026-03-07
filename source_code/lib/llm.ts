@@ -817,7 +817,8 @@ export async function generateExpertCuratedRepos(
         repos?: any[];
         resume?: any;
     },
-    domainProfile: UserDomainProfile
+    domainProfile: UserDomainProfile,
+    randomSeed?: string
 ): Promise<RecommendationCategory[]> {
     const systemPrompt = `You are a senior developer mentor doing 1-on-1 career coaching. You possess encyclopedic knowledge of all open-source repositories on GitHub across all languages (React, Python, Machine Learning, Systems, etc). You are tasked with generating a master curriculum of exactly 10 repositories per tech domain that the developer should contribute to. Return ONLY raw valid JSON.`;
 
@@ -845,6 +846,8 @@ ${JSON.stringify(userProfile.resume?.projects?.map((p: any) => ({
 
 ====== TECH DOMAINS TO CURATE ======
 ${JSON.stringify(domainProfile.domains, null, 2)}
+
+${randomSeed ? `====== RANDOMIZATION SEED ======\nTo ensure variety upon regeneration, use this seed: "${randomSeed}". Do NOT recommend the exact same most popular repositories. Dig deeper into the GitHub ecosystem to find high-quality alternative matches that fit this seed's variation.\n` : ""}
 
 ====== INSTRUCTIONS ======
 You must act as a personalized open-source matchmaker. 
@@ -889,11 +892,14 @@ Return ONLY this exact JSON structure:
 }
 `;
 
+    // Increase randomness if user pressed 'Regenerate'
+    const finalTemperature = randomSeed ? 0.7 : 0.2;
+
     const client = pickMatchClient();
     const response = await callGroqWithErrorHandling(client, {
         model: MODEL,
         max_tokens: 5000,
-        temperature: 0.2,
+        temperature: finalTemperature,
         stream: false,
         messages: [
             { role: "system", content: systemPrompt },

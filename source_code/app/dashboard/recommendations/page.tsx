@@ -379,7 +379,7 @@ export default function RecommendationsPage() {
     const [isTestMode, setIsTestMode] = useState(false)
     const [showResumePrompt, setShowResumePrompt] = useState(false)
 
-    const generateRecommendations = async (useTestUrl?: string) => {
+    const generateRecommendations = async (useTestUrl?: string, regenerate: boolean = false) => {
         setLoading(true)
         setError(null)
         setCategories(null)
@@ -390,7 +390,7 @@ export default function RecommendationsPage() {
             const response = await fetch("/api/recommendations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ testGithubUrl: useTestUrl || undefined })
+                body: JSON.stringify({ testGithubUrl: useTestUrl || undefined, regenerate })
             })
 
             if (!response.body) throw new Error("No response stream")
@@ -611,7 +611,7 @@ export default function RecommendationsPage() {
                                 <span className="text-xs font-medium text-foreground">{meta.hasOSSContributions ? "✅ Prior contributions detected" : "🆕 New to open source"}</span>
                             </div>
                             <Button
-                                onClick={() => isTestMode ? handleTestProfile() : handleMyProfile()}
+                                onClick={() => generateRecommendations(isTestMode ? testUrl.trim() : undefined, true)}
                                 disabled={loading}
                                 variant="ghost"
                                 size="sm"
