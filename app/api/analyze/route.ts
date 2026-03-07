@@ -103,11 +103,30 @@ export async function POST(req: NextRequest) {
             // If data is fresh, return immediately
             if (!stale) {
                 console.log(`[/api/analyze] ✅ Fresh cache hit for ${normalizedUrl}`);
-                return NextResponse.json({ cached: true, data }, { status: 200 });
+
+                // Compact the cached data to prevent 413 errors
+                const compactData = {
+                    ...data,
+                    commits: data.commits?.slice(0, 10),
+                    contributors: data.contributors?.slice(0, 20),
+                    fileTree: undefined, // Remove large fields
+                    keyFileContents: undefined,
+                };
+
+                return NextResponse.json({ cached: true, data: compactData }, { status: 200 });
             }
 
             // If data is stale, return it but trigger background refresh
             console.log(`[/api/analyze] ⚠️ Stale cache hit for ${normalizedUrl}, returning stale data`);
+
+            // Compact stale data too
+            const compactStaleData = {
+                ...data,
+                commits: data.commits?.slice(0, 10),
+                contributors: data.contributors?.slice(0, 20),
+                fileTree: undefined,
+                keyFileContents: undefined,
+            };
 
             // Trigger background refresh (fire and forget)
             // Note: In production, consider using a queue system for this
@@ -123,7 +142,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({
                 cached: true,
                 stale: true,
-                data
+                data: compactStaleData
             }, { status: 200 });
         }
     }
@@ -232,7 +251,26 @@ async function performAnalysis(
         const responseData = analysisDoc.toObject ? analysisDoc.toObject() : analysisDoc;
         responseData.techStack = techStack as unknown as Record<string, unknown>;
 
-        return NextResponse.json({ cached: false, data: responseData }, { status: 200 });
+        // Remove large fields to prevent 413 Payload Too Large errors
+        // File tree and key files are stored in DB but not returned in API response
+        const compactResponse = {
+            _id: responseData._id,
+            repoUrl: responseData.repoUrl,
+            owner: responseData.owner,
+            repoName: responseData.repoName,
+            metadata: responseData.metadata,
+            commits: responseData.commits?.slice(0, 10), // Only return last 10 commits
+            contributors: responseData.contributors?.slice(0, 20), // Only top 20 contributors
+            repoStatus: responseData.repoStatus,
+            techStack: responseData.techStack,
+            // Don't send fileTree (can be 1-2MB)
+            // Don't send keyFileContents (can be 3-5MB)
+            llmAnalysis: responseData.llmAnalysis,
+            analyzedAt: responseData.analyzedAt,
+            viewCount: responseData.viewCount,
+        };
+
+        return NextResponse.json({ cached: false, data: compactResponse }, { status: 200 });
     } catch (err: unknown) {
         console.error("[/api/analyze] Error:", err);
 
