@@ -28,12 +28,12 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("profile")
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col overflow-hidden">
       <DashboardHeader title="Settings" />
 
-      <div className="flex flex-1 flex-col gap-6 p-6 lg:flex-row">
+      <div className="flex flex-1 flex-col gap-6 overflow-x-hidden p-4 sm:p-6 lg:flex-row">
         {/* Settings sidebar */}
-        <nav className="flex shrink-0 flex-row gap-1 lg:w-56 lg:flex-col">
+        <nav className="flex shrink-0 gap-1 overflow-x-auto pb-2 scrollbar-hide lg:w-56 lg:flex-col lg:overflow-x-visible lg:pb-0">
           {tabs.map((tab) => {
             const Icon = tab.icon
             return (
@@ -41,7 +41,7 @@ export default function SettingsPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors",
                   activeTab === tab.id
                     ? "bg-accent text-foreground"
                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"

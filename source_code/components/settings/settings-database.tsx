@@ -29,7 +29,7 @@ export function SettingsDatabase() {
     try {
       const response = await fetch("/api/repos/sync")
       const data = await response.json()
-      
+
       if (data.success) {
         setStats(data.stats)
       } else {
@@ -78,8 +78,8 @@ export function SettingsDatabase() {
 
   const topLanguages = stats?.byLanguage
     ? Object.entries(stats.byLanguage)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 10)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
     : []
 
   return (
@@ -91,7 +91,7 @@ export function SettingsDatabase() {
         </p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           onClick={() => fetchStats()}
           disabled={loading}

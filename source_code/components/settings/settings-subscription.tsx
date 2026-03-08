@@ -69,8 +69,8 @@ export function SettingsSubscription() {
 
   const planInfo = PLAN_INFO[subscription.plan]
   const Icon = planInfo.icon
-  const usagePercent = subscription.routeAnalysisLimit === Infinity 
-    ? 0 
+  const usagePercent = subscription.routeAnalysisLimit === Infinity
+    ? 0
     : (subscription.routeAnalysisCount / subscription.routeAnalysisLimit) * 100
 
   return (
@@ -83,7 +83,7 @@ export function SettingsSubscription() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Plan Badge */}
-          <div className={`flex items-center gap-4 rounded-lg border ${planInfo.borderColor} ${planInfo.bgColor} p-4`}>
+          <div className={`flex flex-col gap-4 rounded-lg border sm:flex-row sm:items-center ${planInfo.borderColor} ${planInfo.bgColor} p-4`}>
             <div className={`flex h-12 w-12 items-center justify-center rounded-full ${planInfo.bgColor}`}>
               <Icon className={`h-6 w-6 ${planInfo.color}`} />
             </div>
@@ -121,7 +121,7 @@ export function SettingsSubscription() {
               <Progress value={usagePercent} className="h-2" />
             )}
             <p className="text-xs text-muted-foreground">
-              {subscription.routeAnalysisRemaining === Infinity 
+              {subscription.routeAnalysisRemaining === Infinity
                 ? "Unlimited route analyses available"
                 : `${subscription.routeAnalysisRemaining} analyses remaining today`}
             </p>

@@ -69,6 +69,13 @@
   .gradient-border {
     border-image: linear-gradient(to right, hsl(142 71% 45%), hsl(160 60% 45%)) 1;
   }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 [contenteditable][data-placeholder]:empty::before {

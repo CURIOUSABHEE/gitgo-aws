@@ -59,7 +59,7 @@ export function Hero() {
   }
 
   return (
-    <section ref={heroRef} className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pt-16">
+    <section ref={heroRef} className="relative flex flex-col items-center justify-center overflow-hidden px-6 pt-32 pb-16">
       {/* Simplified background */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
 
@@ -103,7 +103,7 @@ export function Hero() {
         </div>
 
         {/* Stats */}
-        <div ref={statsRef} className="mt-24 grid grid-cols-3 gap-8 border-t border-border/50 pt-12">
+        <div ref={statsRef} className="mt-16 grid grid-cols-1 gap-8 border-t border-border/50 pt-12 sm:grid-cols-3">
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-2">
               <GitBranch className="h-5 w-5 text-primary" />

@@ -67,18 +67,18 @@ export default function ProjectsPage() {
 
       <div className="flex-1 p-6">
         {/* User info section */}
-        <div className="mb-8 flex items-center gap-4 rounded-xl border border-border bg-card p-5">
+        <div className="mb-8 flex flex-col gap-4 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-center">
           <Avatar className="h-16 w-16">
             <AvatarImage src={profile.user.avatar_url} alt={profile.user.name} />
             <AvatarFallback>
               {profile.user.name?.slice(0, 2).toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold text-foreground">
               {profile.user.name || profile.user.login}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground break-words">
               @{profile.user.login}
               {profile.user.bio && ` • ${profile.user.bio}`}
             </p>
@@ -244,8 +244,8 @@ function RepoCard({ repo, onReadMore }: { repo: any; onReadMore: (fullName: stri
         )}
       </CardHeader>
       <CardContent className="p-5 pt-0">
-        <div className="flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Star className="h-3 w-3" />
               {repo.stargazers_count}
@@ -259,7 +259,7 @@ function RepoCard({ repo, onReadMore }: { repo: any; onReadMore: (fullName: stri
               Updated {updatedDate}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"

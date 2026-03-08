@@ -67,7 +67,7 @@ export function Footer() {
 
           <div className="flex items-center gap-4">
             <Link
-              href="#"
+              href="https://github.com/CURIOUSABHEE/gitgo-aws"
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-all hover:border-primary/30 hover:text-primary"
             >
               <Github className="h-4 w-4" />
@@ -89,7 +89,7 @@ export function Footer() {
 
         <div className="mt-12 border-t border-border/50 pt-8 text-center">
           <p className="text-sm text-muted-foreground">
-            © 2024 gitgo. Built for developers, by developers.
+            © 2026 gitgo. Built for developers, by developers.
           </p>
         </div>
       </div>

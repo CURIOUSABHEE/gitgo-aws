@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { 
-  LayoutDashboard, 
-  Compass, 
-  Award, 
-  Database, 
-  FolderGit2, 
-  Search, 
-  Users, 
+import {
+  LayoutDashboard,
+  Compass,
+  Award,
+  Database,
+  FolderGit2,
+  Search,
+  Users,
   FileUser,
   TrendingUp,
   GitBranch,
@@ -238,12 +239,7 @@ export default function OverviewPage() {
 
   return (
     <div className="flex flex-col">
-      {/* Header */}
-      <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center px-6">
-          <h1 className="text-2xl font-bold">App Overview</h1>
-        </div>
-      </div>
+      <DashboardHeader title="App Overview" />
 
       <div className="flex-1 p-6 space-y-6">
         {/* Welcome Section */}

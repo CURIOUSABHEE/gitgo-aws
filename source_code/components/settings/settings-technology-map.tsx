@@ -73,7 +73,7 @@ export function SettingsTechnologyMap() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="w-full">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Technology Map</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -129,15 +129,15 @@ export function SettingsTechnologyMap() {
       <Tabs defaultValue="most-used" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="most-used">
-            <TrendingUp className="h-4 w-4 mr-2" />
+            <TrendingUp className="hidden h-4 w-4 sm:inline mr-2" />
             Most Used
           </TabsTrigger>
           <TabsTrigger value="recent">
-            <Clock className="h-4 w-4 mr-2" />
+            <Clock className="hidden h-4 w-4 sm:inline mr-2" />
             Recently Used
           </TabsTrigger>
           <TabsTrigger value="primary">
-            <Star className="h-4 w-4 mr-2" />
+            <Star className="hidden h-4 w-4 sm:inline mr-2" />
             Primary
           </TabsTrigger>
         </TabsList>
@@ -147,7 +147,7 @@ export function SettingsTechnologyMap() {
             {stats.mostUsed.map((tech) => (
               <Card key={tech.technology}>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                         <Code2 className="h-5 w-5 text-primary" />

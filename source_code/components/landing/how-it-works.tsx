@@ -41,7 +41,7 @@ export function HowItWorks() {
       gsap.from(headerRef.current, {
         scrollTrigger: {
           trigger: headerRef.current,
-          start: "top 80%",
+          start: "top 95%",
         },
         opacity: 0,
         y: 30,
@@ -52,7 +52,7 @@ export function HowItWorks() {
       gsap.from(stepsRef.current?.children || [], {
         scrollTrigger: {
           trigger: stepsRef.current,
-          start: "top 80%",
+          start: "top 95%",
         },
         opacity: 0,
         y: 50,
@@ -66,7 +66,7 @@ export function HowItWorks() {
   }, [])
 
   return (
-    <section ref={sectionRef} id="how-it-works" className="relative px-6 py-32">
+    <section ref={sectionRef} id="how-it-works" className="relative px-6 py-16">
       <div className="mx-auto max-w-6xl">
         <div ref={headerRef} className="mb-20 text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
