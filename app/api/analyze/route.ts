@@ -107,8 +107,8 @@ export async function POST(req: NextRequest) {
                 // Compact the cached data to prevent 413 errors
                 const compactData = {
                     ...data,
-                    commits: data.commits?.slice(0, 10),
-                    contributors: data.contributors?.slice(0, 20),
+                    commits: Array.isArray(data.commits) ? data.commits.slice(0, 10) : [],
+                    contributors: Array.isArray(data.contributors) ? data.contributors.slice(0, 20) : [],
                     fileTree: undefined, // Remove large fields
                     keyFileContents: undefined,
                 };
@@ -122,8 +122,8 @@ export async function POST(req: NextRequest) {
             // Compact stale data too
             const compactStaleData = {
                 ...data,
-                commits: data.commits?.slice(0, 10),
-                contributors: data.contributors?.slice(0, 20),
+                commits: Array.isArray(data.commits) ? data.commits.slice(0, 10) : [],
+                contributors: Array.isArray(data.contributors) ? data.contributors.slice(0, 20) : [],
                 fileTree: undefined,
                 keyFileContents: undefined,
             };
@@ -295,8 +295,8 @@ async function performAnalysis(
             owner: responseData.owner,
             repoName: responseData.repoName,
             metadata: responseData.metadata,
-            commits: responseData.commits?.slice(0, 10), // Only return last 10 commits
-            contributors: responseData.contributors?.slice(0, 20), // Only top 20 contributors
+            commits: Array.isArray(responseData.commits) ? responseData.commits.slice(0, 10) : [], // Only return last 10 commits
+            contributors: Array.isArray(responseData.contributors) ? responseData.contributors.slice(0, 20) : [], // Only top 20 contributors
             repoStatus: responseData.repoStatus,
             techStack: responseData.techStack,
             // Don't send fileTree (can be 1-2MB)
@@ -340,19 +340,11 @@ async function performAnalysis(
 
         const message = err instanceof Error ? err.message : "An unknown error occurred.";
 
-        // Handle Bedrock/Gemini errors
-        if (message.includes("bedrock") || message.includes("Bedrock")) {
+        // Handle Bedrock errors
+        if (message.includes("bedrock") || message.includes("Bedrock") || message.includes("Access Denied")) {
             console.error("[/api/analyze] 🔒 AWS Bedrock error - check IAM permissions");
             return NextResponse.json({
                 error: "AI analysis service unavailable. Please check AWS Bedrock permissions.",
-                details: message
-            }, { status: 503 });
-        }
-
-        if (message.includes("gemini") || message.includes("Gemini") || message.includes("API key")) {
-            console.error("[/api/analyze] 🔒 Gemini API error - check API key");
-            return NextResponse.json({
-                error: "AI analysis service unavailable. Please check Gemini API key.",
                 details: message
             }, { status: 503 });
         }

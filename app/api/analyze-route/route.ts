@@ -195,9 +195,9 @@ async function performRouteAnalysis(
             filePaths = (repoDoc.keyFileContents as any[]).map((f: any) => f.path);
         }
 
-        // ── Step A: Identify relevant files (uses key1 or key2 alternately) ──
+        // ── Step A: Identify relevant files ──
         const relevantPaths = await withRateLimitRetry(() =>
-            identifyRelevantFilesForRoute(route, filePaths, routeIndex)
+            identifyRelevantFilesForRoute(route, filePaths)
         );
 
         // ── Step B: Fetch full source from GitHub ─────────────────────────────
@@ -226,9 +226,9 @@ async function performRouteAnalysis(
             fullFiles = keyFiles;
         }
 
-        // ── Step D: Deep analysis using secondary distributed GROQ_API_KEYs ───────
+        // ── Step D: Deep analysis ───────
         const result = await withRateLimitRetry(() =>
-            analyzeSpecificRoute(route, codebaseStr, routeIndex)
+            analyzeSpecificRoute(route, codebaseStr)
         );
 
         // ── Step E: Resolve <<<FILE:path:start-end>>> tags to real code ────────

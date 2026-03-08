@@ -1,31 +1,27 @@
 /**
- * LLM Analysis Service using Groq
- * - Groq Llama 3.3 70B Versatile: All AI tasks (architecture, routes, recommendations)
- * 
- * Using Groq exclusively because AWS Bedrock models require inference profiles
- * which are not available in all regions or accounts.
+ * LLM Analysis Service using AWS Bedrock and Google Gemini
+ * - AWS Bedrock: Claude 3.5 Sonnet for architecture analysis
+ * - Google Gemini: Gemini 2.7B PT for route analysis and recommendations
  */
-import Groq from "groq-sdk";
+import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { truncate } from "./utils";
 import type { KeyFile, TechStack, TreeItem } from "./github";
 
-// ─── Groq Client ───────────────────────────────────────────────────────────
-const groqKeys = [
-    process.env.GROQ_API_KEY,
-    process.env.GROQ_API_KEY_1,
-    process.env.GROQ_API_KEY_2,
-    process.env.GROQ_API_KEY_3,
-].filter(Boolean) as string[];
+// ─── AWS Bedrock Client ────────────────────────────────────────────────────
+const bedrockClient = new BedrockRuntimeClient({
+    region: process.env.GITGO_AWS_REGION || process.env.AWS_REGION || "us-east-1",
+});
 
-let currentGroqKeyIndex = 0;
+// ─── Google Gemini Client ──────────────────────────────────────────────────
+let geminiClient: GoogleGenerativeAI | null = null;
 
-function getGroqClient(): Groq {
-    const apiKey = groqKeys[currentGroqKeyIndex % groqKeys.length] || 'dummy-key-for-build';
-    return new Groq({ apiKey });
-}
-
-function rotateGroqKey() {
-    currentGroqKeyIndex = (currentGroqKeyIndex + 1) % groqKeys.length;
+function getGeminiClient(): GoogleGenerativeAI {
+    if (!geminiClient) {
+        const apiKey = process.env.GEMINI_API_KEY || 'dummy-key-for-build';
+        geminiClient = new GoogleGenerativeAI(apiKey);
+    }
+    return geminiClient;
 }
 
 // ─── Helper Functions ──────────────────────────────────────────────────────
@@ -52,66 +48,99 @@ function extractJSON<T>(text: string): T {
     return JSON.parse(jsonStr) as T;
 }
 
-// ─── Groq Helper ───────────────────────────────────────────────────────────
+// ─── AWS Bedrock Helper ────────────────────────────────────────────────────
 
-/**
- * Call Groq Llama 3.3 70B for all AI tasks
- * Use for: Architecture analysis, route analysis, recommendations, quick summaries
- */
-async function callGroq(systemPrompt: string, userPrompt: string, maxTokens: number = 3000): Promise<string> {
+async function callBedrock(systemPrompt: string, userPrompt: string, maxTokens: number = 4000): Promise<string> {
     try {
-        const groq = getGroqClient();
-
-        const completion = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt }
-            ],
-            temperature: 0.2,
+        const payload = {
+            anthropic_version: "bedrock-2023-05-31",
             max_tokens: maxTokens,
+            temperature: 0.2,
+            system: systemPrompt,
+            messages: [
+                {
+                    role: "user",
+                    content: userPrompt
+                }
+            ]
+        };
+
+        const command = new InvokeModelCommand({
+            modelId: "anthropic.claude-3-5-sonnet-20241022-v2:0", // Claude 3.5 Sonnet v2
+            contentType: "application/json",
+            accept: "application/json",
+            body: JSON.stringify(payload)
         });
 
-        return completion.choices[0]?.message?.content || "";
+        const response = await bedrockClient.send(command);
+        const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+        return responseBody.content[0].text;
     } catch (error: any) {
-        console.error("[Groq] Error:", error);
+        console.error("[Bedrock] Error:", error);
+
+        // Log detailed error information
+        console.error("[Bedrock] Error details:", {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            statusCode: error.$metadata?.httpStatusCode,
+        });
+
+        // Provide helpful error messages
+        if (error.name === 'AccessDeniedException') {
+            throw new Error(`Bedrock Access Denied: Add AmazonBedrockFullAccess to Amplify service role`);
+        }
+
+        if (error.name === 'ResourceNotFoundException') {
+            throw new Error(`Bedrock Model Not Found in ${process.env.GITGO_AWS_REGION || 'us-east-1'}`);
+        }
+
+        throw new Error(`Bedrock API error: ${error.message}`);
+    }
+}
+
+// ─── Google Gemini Helper ──────────────────────────────────────────────────
+
+async function callGemini(systemPrompt: string, userPrompt: string, maxTokens: number = 3000): Promise<string> {
+    try {
+        const genAI = getGeminiClient();
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash-exp", // Using Gemini 2.0 Flash (free tier)
+            generationConfig: {
+                maxOutputTokens: maxTokens,
+                temperature: 0.2,
+            }
+        });
+
+        const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+        const result = await model.generateContent(fullPrompt);
+        const response = await result.response;
+        return response.text();
+    } catch (error: any) {
+        console.error("[Gemini] Error:", error);
 
         // Log detailed error
-        console.error("[Groq] Error details:", {
+        console.error("[Gemini] Error details:", {
             name: error.name,
             message: error.message,
             status: error.status,
         });
 
-        // Handle rate limits by rotating keys
-        if (error.status === 429 || error.message?.includes('rate_limit')) {
-            console.log("[Groq] Rate limit hit, rotating to next API key...");
-            rotateGroqKey();
-
-            // Retry with next key
-            const groq = getGroqClient();
-            const completion = await groq.chat.completions.create({
-                model: "llama-3.3-70b-versatile",
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userPrompt }
-                ],
-                temperature: 0.2,
-                max_tokens: maxTokens,
-            });
-            return completion.choices[0]?.message?.content || "";
-        }
-
         // Provide helpful error messages
-        if (error.message?.includes('API key') || error.message?.includes('authentication')) {
-            throw new Error(`Groq API Key Invalid: Check GROQ_API_KEY environment variables`);
+        if (error.message?.includes('API key')) {
+            throw new Error(`Gemini API Key Invalid: Check GEMINI_API_KEY environment variable`);
         }
 
-        throw new Error(`Groq API error: ${error.message}`);
+        if (error.status === 429) {
+            throw new Error(`Gemini Rate Limit: Free tier limit exceeded. Try again later.`);
+        }
+
+        throw new Error(`Gemini API error: ${error.message}`);
     }
 }
 
-// ─── 1. Architecture Analysis (Groq) ───────────────────────────────────────
+// ─── 1. Architecture Analysis (AWS Bedrock) ────────────────────────────────
 
 export interface ArchNode {
     id: string;
@@ -149,174 +178,83 @@ export async function analyzeArchitecture(
         .map((f) => `\n\n=== FILE: ${f.path} ===\n${f.content}`)
         .join("");
 
-    const systemPrompt = `You are an elite software architect specializing in system architecture analysis. Your task is to analyze a GitHub repository and generate a clear, accurate system architecture diagram.
+    const systemPrompt = `You are a senior software architect specializing in analyzing codebases and creating accurate visual representations of their architecture.
+
+Your job is to analyze a GitHub repository and produce a clear, accurate architecture diagram based on what you actually find in the code.
 
 CRITICAL RULES:
-- Only include components that ACTUALLY EXIST in the repository
-- Do NOT hallucinate services, databases, or infrastructure
-- Use ACTUAL names from the codebase
-- Keep architecture at SERVICE LEVEL, not file level
-- Maximum 12-15 nodes for clarity
-- Avoid duplicate nodes
+- NEVER hallucinate files, services, or infrastructure that don't exist
+- Only describe what is evident from the provided code and file structure
+- If you can only see partial code, work with what's available and note limitations
+- Prefer clarity over completeness
+- Be honest about what you don't know
 
 Return ONLY valid JSON — no markdown, no commentary, no explanation outside the JSON.`;
 
-    const userPrompt = `Analyze this GitHub repository and create a system architecture diagram following these exact steps:
+    const userPrompt = `Analyze this repository following this systematic process:
 
-## STEP 1 — IDENTIFY SYSTEM COMPONENTS
+## STEP 1: ANALYZE THE REPOSITORY
 
-Analyze the repository structure and detect major components:
-- **Frontend applications**: React apps, Next.js pages, Vue components
-- **Backend services**: API servers, Express apps, FastAPI services
-- **APIs**: REST endpoints, GraphQL servers, gRPC services
-- **Microservices**: Independent services with their own deployment
-- **Databases**: PostgreSQL, MongoDB, Redis, MySQL (check connection strings)
-- **Queues**: RabbitMQ, Kafka, Redis Queue, SQS
-- **External services**: Stripe, AWS S3, SendGrid, Twilio (check API calls)
-- **Background workers**: Celery, Bull, cron jobs
-- **Infrastructure**: Nginx, Load Balancers, API Gateway
+Examine the provided code for:
+- Directory structure and file organization
+- Key configuration files (package.json, requirements.txt, Dockerfile, etc.)
+- Entry points (main files, index files, app files)
+- Frameworks and libraries actually used
+- Services, modules, and components that exist
+- Database connections, APIs, and external integrations found in code
+- Environment variables and infrastructure hints (docker-compose, k8s, etc.)
 
-For each component, identify:
-- Component name (use ACTUAL name from code)
-- Component type (frontend/backend/database/service/external)
+## STEP 2: DETERMINE ARCHITECTURE TYPE
 
-## STEP 2 — DETERMINE RELATIONSHIPS
+Based on what you find, identify the architecture pattern:
+- Microservices / distributed system → Show services + connections
+- Monolith / MVC web app → Show layered architecture
+- Frontend app → Show component structure
+- Library / SDK → Show module dependencies
+- Data pipeline → Show data flow
+- Mixed / unclear → Show folder structure + component map
 
-For each component, determine:
-- **Which component calls it**: Trace imports, API calls, database queries
-- **Communication type**: 
-  - HTTP/REST (API calls)
-  - GraphQL (GraphQL queries)
-  - Database Query (SQL, MongoDB queries)
-  - Message Queue (RabbitMQ, Kafka)
-  - SDK Call (AWS SDK, Stripe SDK)
-  - WebSocket (real-time connections)
-  - gRPC (service-to-service)
+## STEP 3: GENERATE ACCURATE DIAGRAM
 
-Return relationships as: Source → Target (Interaction type)
+Create a JSON architecture diagram with these requirements:
 
-## STEP 3 — CREATE ARCHITECTURE LAYERS
+### Node Requirements:
+- Each node MUST represent something that ACTUALLY EXISTS in the codebase
+- Use SPECIFIC names from actual files/folders
+- Each node MUST have:
+    "id": unique snake_case identifier
+    "label": specific file path, component name, or service name from the actual code
+    "type": one of: frontend | backend | service | database | external | infrastructure
 
-Group components into logical layers:
-- **Client Layer**: Web browsers, mobile apps, CLI tools
-- **Frontend Layer**: React apps, Next.js, static sites
-- **API Layer**: REST APIs, GraphQL servers, API Gateway
-- **Service Layer**: Business logic services, microservices
-- **Data Layer**: Databases, caches, file storage
-- **External Services**: Third-party APIs, SaaS platforms
+- Include 15-30 nodes depending on complexity
 
-## STEP 4 — GENERATE GRAPH STRUCTURE
+### Edge Requirements:
+- Each edge shows actual data flow or dependencies found in the code
+- Each edge MUST have:
+    "from": source node id
+    "to": target node id  
+    "label": specific action
+- NO self-loops (from === to is forbidden)
 
-Convert the architecture into a graph with nodes and edges.
+### Notes Requirements:
+- Include 4-8 observations about the architecture
+- Mention the actual tech stack found
+- Note the architecture pattern
 
-**Node format:**
-\`\`\`json
-{
-  "id": "unique_snake_case_id",
-  "label": "Actual Component Name",
-  "type": "frontend | backend | database | service | external | infrastructure"
-}
+## Project File Tree
+\`\`\`
+${truncate(fileTreeStr, 4000)}
 \`\`\`
 
-**Edge format:**
-\`\`\`json
-{
-  "from": "source_node_id",
-  "to": "target_node_id",
-  "label": "HTTP/REST | GraphQL | DB Query | Queue | SDK | WebSocket"
-}
-\`\`\`
-
-## STEP 5 — OUTPUT REACT FLOW COMPATIBLE JSON
-
-Return the diagram in this EXACT format:
-\`\`\`json
-{
-  "nodes": [
-    {"id": "...", "label": "...", "type": "..."}
-  ],
-  "edges": [
-    {"from": "...", "to": "...", "label": "..."}
-  ],
-  "notes": ["Architecture observation 1", "Observation 2"]
-}
-\`\`\`
-
-## STEP 6 — ENSURE DIAGRAM CLARITY
-
-Before returning, verify:
-- ✅ No duplicate nodes
-- ✅ Architecture is high-level (service-level, not file-level)
-- ✅ Maximum 12-15 nodes
-- ✅ All components actually exist in the repository
-- ✅ Relationships are accurate based on code
-- ✅ No hallucinated services
-
-## GUIDELINES FOR NODE NAMING
-
-**Good Examples (Service-level):**
-- "Next.js Frontend" (not "app/page.tsx")
-- "User API" (not "app/api/users/route.ts")
-- "MongoDB Database" (not "models/User.ts")
-- "Stripe Payment Service" (not "lib/stripe.ts")
-- "Redis Cache" (not "cache/redis.ts")
-
-**Bad Examples (Too granular):**
-- ❌ "app/dashboard/page.tsx"
-- ❌ "lib/services/UserService.ts"
-- ❌ "components/Header.tsx"
-
-**Node Type Guidelines:**
-- **frontend**: Web apps, mobile apps, UI layers
-- **backend**: API servers, backend services
-- **service**: Microservices, background workers, specific business services
-- **database**: Databases, caches, storage systems
-- **external**: Third-party APIs, SaaS platforms
-- **infrastructure**: Load balancers, API gateways, message queues
-
-## REPOSITORY DATA
-
-### File Tree
-\`\`\`
-${truncate(fileTreeStr, 5000)}
-\`\`\`
-
-### Tech Stack Detected
+## Tech Stack
 ${formatTechStack(techStack)}
 
-### Key File Contents
-${truncate(keyFilesStr, 30000)}
+## Key File Contents
+${truncate(keyFilesStr, 25000)}
 
-## OUTPUT FORMAT
+Return ONLY the JSON object with "overallFlow" and "architectureJson" keys.`;
 
-Return ONLY this JSON structure (no markdown, no explanation):
-\`\`\`json
-{
-  "overallFlow": "Brief 2-3 sentence description of the system architecture and data flow",
-  "architectureJson": {
-    "nodes": [
-      {"id": "unique_id", "label": "Component Name", "type": "frontend|backend|service|database|external|infrastructure"}
-    ],
-    "edges": [
-      {"from": "source_id", "to": "target_id", "label": "HTTP/REST|GraphQL|DB Query|Queue|SDK"}
-    ],
-    "notes": [
-      "Architecture pattern: Monolith/Microservices/Serverless/etc",
-      "Key technologies: List main tech stack",
-      "Data flow: Describe how data moves through the system",
-      "Notable patterns: Any interesting architectural decisions"
-    ]
-  }
-}
-\`\`\`
-
-REMEMBER: 
-- Service-level abstraction (not file-level)
-- Maximum 12-15 nodes
-- Only components that ACTUALLY exist
-- No hallucinations`;
-
-    const text = await callGroq(systemPrompt, userPrompt, 8000);
+    const text = await callBedrock(systemPrompt, userPrompt, 5000);
 
     try {
         return extractJSON<ArchitectureAnalysis>(text);
@@ -332,7 +270,7 @@ REMEMBER:
     }
 }
 
-// ─── 2. Route Analysis (Groq) ──────────────────────────────────────────────
+// ─── 2. Route Analysis (Google Gemini) ─────────────────────────────────────
 
 export interface RouteDetail {
     path: string;
@@ -406,7 +344,7 @@ Each array item MUST have these exact keys:
 
 Return ONLY the JSON array.`;
 
-    const text = await callGroq(systemPrompt, userPrompt, 3000);
+    const text = await callGemini(systemPrompt, userPrompt, 3000);
 
     try {
         return extractJSON<RouteDetail[]>(text);
@@ -423,7 +361,7 @@ Return ONLY the JSON array.`;
     }
 }
 
-// ─── 3. Specific Route Analysis (Groq) ─────────────────────────────────────
+// ─── 3. Specific Route Analysis (Google Gemini) ────────────────────────────
 
 export interface RouteAnalysisResult {
     flowVisualization: string;
@@ -432,7 +370,8 @@ export interface RouteAnalysisResult {
 
 export async function identifyRelevantFilesForRoute(
     targetRoute: string,
-    filePaths: string[]
+    filePaths: string[],
+    routeIndex: number = 0
 ): Promise<string[]> {
     const systemPrompt = `You are a Senior Software Engineer AI. Your task is to identify which files in a repository are most likely to handle a particular route. 
 Return ONLY a JSON array of strings containing up to 10 file paths. No markdown, purely a JSON array.`;
@@ -445,7 +384,7 @@ ${truncate(filePaths.join("\n"), 30000)}
 
 Return a JSON array of up to 10 strings representing the exact file paths.`;
 
-    const text = await callGroq(systemPrompt, userPrompt, 1000);
+    const text = await callGemini(systemPrompt, userPrompt, 1000);
 
     try {
         let cleanText = text.replace(/^```json/g, "").replace(/^```/g, "").replace(/```$/g, "").trim();
@@ -462,7 +401,8 @@ Return a JSON array of up to 10 strings representing the exact file paths.`;
 
 export async function analyzeSpecificRoute(
     targetRoute: string,
-    codebaseFiles: string
+    codebaseFiles: string,
+    routeIndex: number = 0
 ): Promise<RouteAnalysisResult> {
     const systemPrompt = `You are an Expert Software Architect. Analyze the provided codebase and reverse-engineer the exact execution flow for a specific target route.
 
@@ -482,7 +422,7 @@ ${truncate(codebaseFiles, 28000)}
 
 Output the two headers with their content.`;
 
-    const text = await callGroq(systemPrompt, userPrompt, 3000);
+    const text = await callGemini(systemPrompt, userPrompt, 3000);
 
     try {
         const flowMatch = text.match(/### FLOW_VISUALIZATION\n([\s\S]*?)(?=### EXECUTION_TRACE)/);
@@ -510,7 +450,7 @@ Output the two headers with their content.`;
     }
 }
 
-// ─── 4. AI Repository Matcher (Groq) ───────────────────────────────────────
+// ─── 4. AI Repository Matcher (Google Gemini) ──────────────────────────────
 
 export interface DomainAnalysis {
     domainKey: string;
@@ -589,7 +529,7 @@ Has OSS Contributions: ${userProfile.hasOSContributions ? "YES" : "NO"}
 
 Return JSON with: experienceLevel, hasOpenSourceContributions, contributionNotes, strengths, weaknesses, improvements, and domains (3 domains with domainKey, label, primaryLanguage, frameworks, minStars, reasoning).`;
 
-    const text = await callGroq(systemPrompt, userPrompt, 2000);
+    const text = await callGemini(systemPrompt, userPrompt, 2000);
 
     try {
         return extractJSON<UserDomainProfile>(text);
@@ -618,7 +558,9 @@ Return JSON with: experienceLevel, hasOpenSourceContributions, contributionNotes
 }
 
 export async function generateExpertCuratedRepos(
-    domainProfile: UserDomainProfile
+    userProfile: any,
+    domainProfile: UserDomainProfile,
+    randomSeed?: string
 ): Promise<RecommendationCategory[]> {
     const systemPrompt = `You are a senior developer mentor with encyclopedic knowledge of GitHub repositories. Generate a curated list of 10 repositories per domain. Return ONLY valid JSON.`;
 
@@ -631,7 +573,7 @@ For each domain, recommend EXACTLY 10 repositories with full_name, whyItFits, an
 
 Return JSON: { "categories": [ { "domain": "...", "label": "...", "repos": [...] } ] }`;
 
-    const text = await callGroq(systemPrompt, userPrompt, 5000);
+    const text = await callGemini(systemPrompt, userPrompt, 5000);
 
     try {
         const parsed = extractJSON<{ categories: RecommendationCategory[] }>(text);

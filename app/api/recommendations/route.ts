@@ -231,12 +231,9 @@ export async function POST(req: NextRequest) {
                 send({ type: "phase", phase: "curating" })
                 console.log(`[Recommendations] Phase 2: LLM Curating Repositories...`)
 
-                // If user clicked 'Regenerate', pass a random seed to the LLM to get a fresh batch of repos
-                const randomSeed = regenerate ? Date.now().toString() + Math.random().toString() : undefined;
-
                 let categories: any[] = []
                 try {
-                    categories = await generateExpertCuratedRepos(userProfile, domainProfile, randomSeed)
+                    categories = await generateExpertCuratedRepos(domainProfile)
                 } catch (err) {
                     console.error("[Recommendations] Phase 2 failed:", err)
                     send({ type: "error", error: "Curriculum generation failed. Please try again." })
