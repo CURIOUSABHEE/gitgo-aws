@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { connectDB } from "@/lib/mongodb"
 import User from "@/models/User"
 import { parseResume } from "@/lib/resume-parser"
+import { uploadResumeToS3, deleteResumeFromS3 } from "@/lib/s3"
 
 // POST /api/user/resume - Upload and parse a PDF resume
 export async function POST(request: NextRequest) {
@@ -37,6 +38,19 @@ export async function POST(request: NextRequest) {
 
         // Parse the resume
         const parsed = await parseResume(buffer)
+
+        // Get existing user to check for old resume
+        const existingUser = await User.findOne({ githubId: String(session.user.githubId) })
+
+        // Delete old resume from S3 if exists
+        if (existingUser?.resumeS3Key) {
+            console.log("[Resume Upload] Deleting old resume from S3:", existingUser.resumeS3Key)
+            await deleteResumeFromS3(existingUser.resumeS3Key)
+        }
+
+        // Upload new resume to S3
+        console.log("[Resume Upload] Uploading new resume to S3...")
+        const s3Key = await uploadResumeToS3(buffer, file.name, session.user.githubId)
 
         // Try to match parsed projects against user's GitHub repos
         try {
@@ -80,11 +94,17 @@ export async function POST(request: NextRequest) {
                 $set: {
                     resumeFileName: file.name,
                     resumeUploadedAt: new Date(),
+                    resumeS3Key: s3Key,
+                    resumeName: parsed.name,
+                    resumeEmail: parsed.email,
+                    resumePhone: parsed.phone,
+                    resumeLocation: parsed.location,
                     resumeCareerObjective: parsed.careerObjective,
                     resumeSkillGroups: parsed.skillGroups,
                     resumeExperience: parsed.experience,
                     resumeEducation: parsed.education,
                     resumeProjects: parsed.projects,
+                    resumeCertifications: parsed.certifications,
                     resumeRawText: parsed.rawText,
                 },
             },
@@ -95,22 +115,29 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "User not found" }, { status: 404 })
         }
 
+        console.log("[Resume Upload] ✅ Successfully saved resume to S3 and MongoDB")
+
         return NextResponse.json({
             success: true,
             data: {
                 fileName: updatedUser.resumeFileName,
                 uploadedAt: updatedUser.resumeUploadedAt,
+                name: updatedUser.resumeName,
+                email: updatedUser.resumeEmail,
+                phone: updatedUser.resumePhone,
+                location: updatedUser.resumeLocation,
                 careerObjective: updatedUser.resumeCareerObjective,
                 skillGroups: updatedUser.resumeSkillGroups,
                 experience: updatedUser.resumeExperience,
                 education: updatedUser.resumeEducation,
                 projects: updatedUser.resumeProjects,
+                certifications: updatedUser.resumeCertifications,
             },
         })
     } catch (error: any) {
         console.error("Resume upload error:", error?.message || error)
         console.error("Resume upload stack:", error?.stack)
-        
+
         // Return specific error message to help user
         const errorMessage = error?.message || "Failed to process resume"
         return NextResponse.json({ error: errorMessage }, { status: 500 })
@@ -129,11 +156,17 @@ export async function GET() {
             {
                 resumeFileName: 1,
                 resumeUploadedAt: 1,
+                resumeS3Key: 1,
+                resumeName: 1,
+                resumeEmail: 1,
+                resumePhone: 1,
+                resumeLocation: 1,
                 resumeCareerObjective: 1,
                 resumeSkillGroups: 1,
                 resumeExperience: 1,
                 resumeEducation: 1,
                 resumeProjects: 1,
+                resumeCertifications: 1,
             }
         )
 
@@ -145,11 +178,16 @@ export async function GET() {
             data: {
                 fileName: user.resumeFileName,
                 uploadedAt: user.resumeUploadedAt,
+                name: user.resumeName,
+                email: user.resumeEmail,
+                phone: user.resumePhone,
+                location: user.resumeLocation,
                 careerObjective: user.resumeCareerObjective,
                 skillGroups: user.resumeSkillGroups,
                 experience: user.resumeExperience,
                 education: user.resumeEducation,
                 projects: user.resumeProjects,
+                certifications: user.resumeCertifications,
             },
         })
     } catch (error) {
@@ -168,21 +206,39 @@ export async function DELETE() {
 
         await connectDB()
 
+        // Get user to find S3 key
+        const user = await User.findOne({ githubId: String(session.user.githubId) })
+
+        // Delete from S3 if exists
+        if (user?.resumeS3Key) {
+            console.log("[Resume Delete] Deleting from S3:", user.resumeS3Key)
+            await deleteResumeFromS3(user.resumeS3Key)
+        }
+
+        // Delete from MongoDB
         await User.findOneAndUpdate(
             { githubId: String(session.user.githubId) },
             {
                 $unset: {
                     resumeFileName: "",
                     resumeUploadedAt: "",
+                    resumeS3Key: "",
+                    resumeName: "",
+                    resumeEmail: "",
+                    resumePhone: "",
+                    resumeLocation: "",
                     resumeCareerObjective: "",
                     resumeSkillGroups: "",
                     resumeExperience: "",
                     resumeEducation: "",
                     resumeProjects: "",
+                    resumeCertifications: "",
                     resumeRawText: "",
                 },
             }
         )
+
+        console.log("[Resume Delete] ✅ Successfully deleted resume from S3 and MongoDB")
 
         return NextResponse.json({ success: true })
     } catch (error) {

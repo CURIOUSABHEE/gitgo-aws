@@ -160,7 +160,7 @@ export function SettingsPreferences() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full max-w-2xl">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Preferences</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -301,7 +301,7 @@ export function SettingsPreferences() {
 
       <div className="flex justify-end">
         <Button 
-          className="px-6"
+          className="px-6 w-full sm:w-auto"
           onClick={handleSave}
           disabled={saving || !hasChanges}
         >

@@ -106,7 +106,7 @@ export function SettingsProfile() {
     : "U"
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full max-w-2xl">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Profile</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -117,7 +117,7 @@ export function SettingsProfile() {
       <Separator className="my-6" />
 
       {/* Avatar section */}
-      <div className="flex items-center gap-5">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
         <div className="relative">
           <Avatar className="h-20 w-20">
             {profile?.user.avatar_url && (
@@ -260,10 +260,11 @@ export function SettingsProfile() {
 
       <Separator className="my-6" />
 
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-col sm:flex-row justify-end gap-3">
         {hasChanges && (
           <Button 
             variant="outline" 
+            className="w-full sm:w-auto"
             onClick={() => {
               // Reset to original values
               if (profile?.user) {
@@ -286,7 +287,7 @@ export function SettingsProfile() {
           </Button>
         )}
         <Button 
-          className="px-6" 
+          className="px-6 w-full sm:w-auto" 
           onClick={handleSave}
           disabled={saving || !hasChanges}
         >

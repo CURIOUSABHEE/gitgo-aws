@@ -73,7 +73,7 @@ export function SettingsTechnologyMap() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="w-full max-w-4xl">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Technology Map</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -127,18 +127,18 @@ export function SettingsTechnologyMap() {
 
       {/* Technology Lists */}
       <Tabs defaultValue="most-used" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="most-used">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Most Used
+        <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsTrigger value="most-used" className="flex-col sm:flex-row gap-1 sm:gap-2 py-2">
+            <TrendingUp className="h-4 w-4" />
+            <span className="text-xs sm:text-sm">Most Used</span>
           </TabsTrigger>
-          <TabsTrigger value="recent">
-            <Clock className="h-4 w-4 mr-2" />
-            Recently Used
+          <TabsTrigger value="recent" className="flex-col sm:flex-row gap-1 sm:gap-2 py-2">
+            <Clock className="h-4 w-4" />
+            <span className="text-xs sm:text-sm">Recent</span>
           </TabsTrigger>
-          <TabsTrigger value="primary">
-            <Star className="h-4 w-4 mr-2" />
-            Primary
+          <TabsTrigger value="primary" className="flex-col sm:flex-row gap-1 sm:gap-2 py-2">
+            <Star className="h-4 w-4" />
+            <span className="text-xs sm:text-sm">Primary</span>
           </TabsTrigger>
         </TabsList>
 

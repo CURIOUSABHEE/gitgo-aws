@@ -26,7 +26,12 @@ interface SkillGroup {
 interface ResumeData {
   fileName: string
   uploadedAt: string
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+  location?: string | null
   careerObjective?: string
+  skills?: string[]
   skillGroups?: SkillGroup[]
   experience?: {
     title: string
@@ -47,6 +52,7 @@ interface ResumeData {
     githubUrl?: string
     duration?: string
   }[]
+  certifications?: string[]
 }
 
 export function SettingsResume() {
@@ -177,13 +183,17 @@ export function SettingsResume() {
   const totalSkills = resumeData?.skillGroups?.reduce((sum, g) => sum + g.skills.length, 0) || 0
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full max-w-2xl">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Resume</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Upload your resume to extract skills, experience, and education. This data
           helps improve AI matching with open source projects.
         </p>
+        <div className="mt-2 flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>Only text-based PDFs are supported. Scanned PDFs will not work.</span>
+        </div>
       </div>
 
       <Separator className="my-6" />
@@ -201,17 +211,17 @@ export function SettingsResume() {
 
       {/* Current file */}
       {resumeData && (
-        <div className="mb-6 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+        <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
               <FileText className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-foreground">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm font-medium text-foreground truncate">
                   {resumeData.fileName}
                 </p>
-                <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
               </div>
               <p className="text-xs text-muted-foreground">
                 Uploaded {formatDate(resumeData.uploadedAt)}
@@ -221,7 +231,7 @@ export function SettingsResume() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
             onClick={handleDelete}
             disabled={isDeleting}
           >
@@ -244,6 +254,9 @@ export function SettingsResume() {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Extracting skills, experience, projects, and education
+          </p>
+          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+            If this is a scanned PDF, OCR processing may take 30-60 seconds
           </p>
         </div>
       ) : (
@@ -283,6 +296,47 @@ export function SettingsResume() {
       {/* Parsed data display */}
       {resumeData && (
         <>
+          {/* Contact Information */}
+          {(resumeData.name || resumeData.email || resumeData.phone || resumeData.location) && (
+            <>
+              <Separator className="my-6" />
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <User className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Contact Information
+                  </h3>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+                  {resumeData.name && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground w-20">Name:</span>
+                      <span className="text-sm text-foreground">{resumeData.name}</span>
+                    </div>
+                  )}
+                  {resumeData.email && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground w-20">Email:</span>
+                      <span className="text-sm text-foreground">{resumeData.email}</span>
+                    </div>
+                  )}
+                  {resumeData.phone && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground w-20">Phone:</span>
+                      <span className="text-sm text-foreground">{resumeData.phone}</span>
+                    </div>
+                  )}
+                  {resumeData.location && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground w-20">Location:</span>
+                      <span className="text-sm text-foreground">{resumeData.location}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Career Objective */}
           {resumeData.careerObjective && (
             <>
@@ -490,15 +544,49 @@ export function SettingsResume() {
               </div>
             </>
           )}
+
+          {/* Certifications */}
+          {resumeData.certifications && resumeData.certifications.length > 0 && (
+            <>
+              <Separator className="my-6" />
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Certifications
+                  </h3>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {resumeData.certifications.length}
+                  </span>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {resumeData.certifications.map((cert, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary"
+                      >
+                        {cert}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
 
       <Separator className="my-6" />
 
-      <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3">
+      <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3 space-y-2">
         <p className="text-xs text-muted-foreground">
           Your resume is processed on the server and used only for matching. It is
           never shared with third parties or repository maintainers.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          <strong>Note:</strong> Only text-based PDFs are supported. Scanned PDFs (image-based) will not work.
+          If you have a scanned PDF, please convert it using an online OCR tool first.
         </p>
       </div>
     </div>

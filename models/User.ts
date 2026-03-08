@@ -78,11 +78,17 @@ export interface IUser extends Document {
   // Resume Parsing Fields
   resumeFileName?: string
   resumeUploadedAt?: Date
+  resumeS3Key?: string // S3 object key for the PDF file
+  resumeName?: string // Extracted name from resume
+  resumeEmail?: string // Extracted email from resume
+  resumePhone?: string // Extracted phone from resume
+  resumeLocation?: string // Extracted location from resume
   resumeCareerObjective?: string
   resumeSkillGroups?: any[] // Simplified typing for schema
   resumeExperience?: any[]
   resumeEducation?: any[]
   resumeProjects?: any[]
+  resumeCertifications?: string[] // Extracted certifications
   resumeRawText?: string
 }
 
@@ -180,11 +186,17 @@ const UserSchema = new Schema<IUser>(
     // Resume Fields
     resumeFileName: { type: String },
     resumeUploadedAt: { type: Date },
+    resumeS3Key: { type: String }, // S3 object key
+    resumeName: { type: String }, // Extracted name
+    resumeEmail: { type: String }, // Extracted email
+    resumePhone: { type: String }, // Extracted phone
+    resumeLocation: { type: String }, // Extracted location
     resumeCareerObjective: { type: String },
     resumeSkillGroups: [{ type: Schema.Types.Mixed }],
     resumeExperience: [{ type: Schema.Types.Mixed }],
     resumeEducation: [{ type: Schema.Types.Mixed }],
     resumeProjects: [{ type: Schema.Types.Mixed }],
+    resumeCertifications: [{ type: String }], // Extracted certifications
     resumeRawText: { type: String },
   },
   {

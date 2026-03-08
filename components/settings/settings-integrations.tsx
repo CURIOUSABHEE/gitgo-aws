@@ -218,7 +218,7 @@ export function SettingsIntegrations() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full max-w-2xl">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Integrations</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -230,13 +230,13 @@ export function SettingsIntegrations() {
 
       <div className="flex flex-col gap-4">
         {/* GitHub Integration */}
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-foreground">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+          <div className="flex items-start sm:items-center gap-4 w-full sm:w-auto">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground">
               <GitHubIcon />
             </div>
-            <div>
-              <div className="flex items-center gap-2.5">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2.5 flex-wrap">
                 <p className="text-sm font-semibold text-foreground">GitHub</p>
                 {session?.accessToken ? (
                   <span className="flex items-center gap-1.5 text-xs font-medium text-primary">
@@ -255,7 +255,7 @@ export function SettingsIntegrations() {
                 projects.
               </p>
               {profile?.user.login && (
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-muted-foreground break-all">
                   Signed in as{" "}
                   <span className="font-medium text-foreground">
                     @{profile.user.login}
@@ -264,12 +264,12 @@ export function SettingsIntegrations() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             {session?.accessToken ? (
               <Button
                 variant="secondary"
                 size="sm"
-                className="h-8 gap-1.5 text-xs"
+                className="h-8 gap-1.5 text-xs w-full sm:w-auto"
                 onClick={handleResync}
                 disabled={syncing}
               >
@@ -281,7 +281,7 @@ export function SettingsIntegrations() {
             ) : (
               <Button
                 size="sm"
-                className="h-8 text-xs"
+                className="h-8 text-xs w-full sm:w-auto"
                 onClick={handleGitHubConnect}
               >
                 Connect
@@ -292,13 +292,13 @@ export function SettingsIntegrations() {
 
         {/* LinkedIn Integration */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-foreground">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-4 w-full sm:w-auto">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground">
                 <LinkedInIcon />
               </div>
-              <div>
-                <div className="flex items-center gap-2.5">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <p className="text-sm font-semibold text-foreground">
                     LinkedIn
                   </p>
@@ -318,7 +318,7 @@ export function SettingsIntegrations() {
                   Import your experience and skills to improve match accuracy.
                 </p>
                 {linkedinData?.username && (
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground break-all">
                     Linked as{" "}
                     <a
                       href={linkedinData.url}
@@ -333,12 +333,12 @@ export function SettingsIntegrations() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               {linkedinData ? (
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="h-8 gap-1.5 text-xs"
+                  className="h-8 gap-1.5 text-xs w-full sm:w-auto"
                   onClick={handleLinkedinDisconnect}
                   disabled={linkedinDisconnecting}
                 >
@@ -352,7 +352,7 @@ export function SettingsIntegrations() {
               ) : (
                 <Button
                   size="sm"
-                  className="h-8 text-xs"
+                  className="h-8 text-xs w-full sm:w-auto"
                   onClick={() => setShowLinkedinInput(true)}
                 >
                   Connect

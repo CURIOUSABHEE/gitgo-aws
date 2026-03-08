@@ -1,9 +1,10 @@
 "use strict"
 
-// AI-powered resume parser using Groq API
-// 1. Extracts raw text from PDF using pdf-parse
-// 2. Sends to Groq (Llama 3.3 70B) for intelligent structured extraction
-// 3. Returns clean, structured resume data
+// AI-powered resume parser using Groq API with OCR support
+// 1. Tries to extract text from PDF using pdf-parse
+// 2. If text extraction fails, uses Tesseract.js OCR
+// 3. Sends extracted text to Groq (Llama 3.3 70B) for intelligent structured extraction
+// 4. Returns clean, structured resume data
 
 export interface SkillGroup {
     category: string
@@ -33,63 +34,201 @@ export interface ParsedExperience {
 }
 
 export interface ParsedResume {
+    name: string | null
+    email: string | null
+    phone: string | null
+    location: string | null
     careerObjective: string
+    skills: string[]
     skillGroups: SkillGroup[]
     education: ParsedEducation[]
     projects: ParsedProject[]
     experience: ParsedExperience[]
+    certifications: string[]
     rawText: string
 }
 
-const SYSTEM_PROMPT = `You are an expert resume parser. Given the raw text extracted from a PDF resume, extract and return structured data as JSON.
+const SYSTEM_PROMPT = `Your task is to extract structured information from a resume.
 
-IMPORTANT RULES:
-- The text may come from a multi-column layout, so sections might be interleaved. Use your judgment to separate them correctly.
-- Extract ALL information accurately — do not make up or infer data that isn't in the resume.
-- If a section doesn't exist in the resume, return an empty array or empty string for that field.
-- For skills, group them by their category as written in the resume (e.g., "Programming Languages", "Frameworks & Libraries", "Tools", etc.). If skills are listed without explicit categories, create appropriate categories based on the skill type.
-- For projects, extract the project name, description (combine all bullet points into one paragraph), technologies used, and duration/date if available.
-- For education, extract institution name, degree, year/duration, and any additional details like CGPA, percentage, board, etc.
-- For experience, extract job title, company/organization, duration, and description of responsibilities.
-- Keep the career objective/profile/summary as a single clean paragraph.
-- Do NOT include contact information (phone, email, address, LinkedIn URL) in any field.
+From the resume text, extract the following fields:
+1. name
+2. email
+3. phone
+4. location
+5. careerObjective (career objective, summary, or about section)
+6. skills (flat array of all skills)
+7. skillGroups (skills grouped by category)
+8. education (array of objects)
+9. experience (array of objects)
+10. projects (array of objects)
+11. certifications (array)
 
-Return ONLY valid JSON in this exact format (no markdown, no code fences, no explanation):
+For experience extract:
+- company
+- role (job title)
+- duration
+- description
+
+For projects extract:
+- name
+- description
+- technologies (array)
+- githubUrl (if available)
+- duration (if available)
+
+For education extract:
+- institution
+- degree
+- year
+- details (CGPA, percentage, etc.)
+
+For skillGroups extract:
+- category (e.g., "Programming Languages", "Frameworks", "Tools")
+- skills (array of skills in that category)
+
+Return the result in STRICT JSON format only.
+
+Rules:
+- If a field is missing return null for strings, empty array for arrays, or empty string for careerObjective
+- Do not invent information
+- Do not include explanations
+- Do not return markdown code fences
+- Only return valid JSON
+- Extract ALL skills into both the flat "skills" array AND the grouped "skillGroups" array
+- Do NOT include contact information (email, phone) in any description fields
+
+Return ONLY this JSON structure:
 {
-  "careerObjective": "string - the career objective, profile summary, or about section",
+  "name": "string or null",
+  "email": "string or null",
+  "phone": "string or null",
+  "location": "string or null",
+  "careerObjective": "string (empty string if not found)",
+  "skills": ["array of all skills as flat list"],
   "skillGroups": [
     {
-      "category": "string - category name like Programming Languages, Frameworks, etc.",
-      "skills": ["string array of individual skills"]
+      "category": "string",
+      "skills": ["array"]
     }
   ],
   "education": [
     {
-      "institution": "string - school/college/university name",
-      "degree": "string - degree name like B.E in Information Technology, HSC, etc.",
-      "year": "string - year or year range like 2023 - 2027 or 2024",
-      "details": "string - CGPA, percentage, board info (optional, omit key if not present)"
-    }
-  ],
-  "projects": [
-    {
-      "name": "string - project name",
-      "description": "string - full project description combining all bullet points",
-      "technologies": ["string array of technologies/tools used in this project"],
-      "duration": "string - time period (optional, omit key if not present)"
+      "institution": "string",
+      "degree": "string",
+      "year": "string",
+      "details": "string or omit if not present"
     }
   ],
   "experience": [
     {
-      "title": "string - role/position title",
-      "company": "string - company or organization name",
-      "duration": "string - time period",
-      "description": "string - description of responsibilities and achievements"
+      "company": "string",
+      "role": "string",
+      "duration": "string",
+      "description": "string"
     }
-  ]
+  ],
+  "projects": [
+    {
+      "name": "string",
+      "description": "string",
+      "technologies": ["array"],
+      "githubUrl": "string or omit if not present",
+      "duration": "string or omit if not present"
+    }
+  ],
+  "certifications": ["array of certification names"]
 }`
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+/**
+ * Extract text from image-based PDF using OCR (Tesseract.js)
+ */
+async function extractTextWithOCR(pdfBuffer: Buffer): Promise<string> {
+    console.log("[OCR] Starting OCR extraction for image-based PDF...")
+
+    try {
+        // Dynamic imports
+        const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs")
+        const { createWorker } = await import("tesseract.js")
+        const { createCanvas } = await import("canvas")
+
+        // Load PDF document
+        const loadingTask = pdfjsLib.getDocument({
+            data: new Uint8Array(pdfBuffer),
+            useSystemFonts: true,
+        })
+        const pdfDocument = await loadingTask.promise
+        const numPages = pdfDocument.numPages
+
+        console.log(`[OCR] PDF has ${numPages} pages, processing up to 5 pages...`)
+
+        // Create Tesseract worker
+        const worker = await createWorker("eng", 1, {
+            logger: (m: any) => {
+                if (m.status === "recognizing text") {
+                    console.log(`[OCR] Progress: ${Math.round(m.progress * 100)}%`)
+                }
+            },
+        })
+
+        let fullText = ""
+        const pagesToProcess = Math.min(numPages, 5) // Limit to 5 pages to avoid timeout
+
+        // Process each page
+        for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
+            console.log(`[OCR] Processing page ${pageNum}/${pagesToProcess}...`)
+
+            try {
+                // Get page
+                const page = await pdfDocument.getPage(pageNum)
+                const viewport = page.getViewport({ scale: 2.0 }) // Higher scale for better OCR
+
+                // Create canvas
+                const canvas = createCanvas(viewport.width, viewport.height)
+                const context = canvas.getContext("2d")
+
+                // Render PDF page to canvas
+                await page.render({
+                    canvasContext: context as any,
+                    viewport: viewport,
+                }).promise
+
+                // Convert canvas to buffer
+                const imageBuffer = canvas.toBuffer("image/png")
+
+                // Run OCR on the image
+                const { data: { text } } = await worker.recognize(imageBuffer)
+
+                if (text && text.trim()) {
+                    fullText += text + "\n\n"
+                    console.log(`[OCR] Page ${pageNum} extracted ${text.length} characters`)
+                }
+            } catch (pageError: any) {
+                console.error(`[OCR] Error processing page ${pageNum}:`, pageError.message)
+                // Continue with next page
+            }
+        }
+
+        // Terminate worker
+        await worker.terminate()
+
+        const extractedLength = fullText.trim().length
+        console.log(`[OCR] Total extracted: ${extractedLength} characters`)
+
+        if (extractedLength < 50) {
+            throw new Error("OCR extraction produced insufficient text. The PDF may be too low quality or corrupted.")
+        }
+
+        return fullText.trim()
+
+    } catch (error: any) {
+        console.error("[OCR] OCR processing failed:", error.message)
+        throw new Error(
+            `OCR processing failed: ${error.message}. Please ensure the PDF is readable and not corrupted.`
+        )
+    }
+}
 
 /**
  * Parse a PDF buffer using Groq AI for intelligent extraction
@@ -98,10 +237,11 @@ export async function parseResume(pdfBuffer: Buffer): Promise<ParsedResume> {
     // Step 1: Extract raw text from PDF
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfParse = require("pdf-parse")
-    
+
     let pdfData: any
     let rawText: string
-    
+    let usedOCR = false
+
     try {
         pdfData = await pdfParse(pdfBuffer)
         rawText = pdfData.text || ""
@@ -113,10 +253,22 @@ export async function parseResume(pdfBuffer: Buffer): Promise<ParsedResume> {
     // Check if we got meaningful text
     const cleanText = rawText.trim()
     if (!cleanText || cleanText.length < 20) {
-        throw new Error(
-            "Could not extract text from the PDF. This may be an image-based PDF (scanned document). " +
-            "Please use a text-based PDF or convert your scanned PDF to text using OCR software."
-        )
+        console.log("[Resume Parser] Text extraction failed, attempting OCR...")
+
+        try {
+            rawText = await extractTextWithOCR(pdfBuffer)
+            usedOCR = true
+            console.log("[Resume Parser] ✅ OCR successful! Extracted", rawText.length, "characters")
+        } catch (ocrError: any) {
+            console.error("[Resume Parser] OCR failed:", ocrError.message)
+            throw new Error(
+                "Could not extract text from the PDF. " + ocrError.message +
+                " Please try: 1) Using a higher quality scan, 2) Converting to text-based PDF first, " +
+                "3) Using an online OCR tool like https://www.onlineocr.net/"
+            )
+        }
+    } else {
+        console.log("[Resume Parser] ✅ Text-based PDF, extracted", rawText.length, "characters")
     }
 
     // Step 2: Send to Groq API for intelligent parsing
@@ -124,6 +276,8 @@ export async function parseResume(pdfBuffer: Buffer): Promise<ParsedResume> {
     if (!apiKey) {
         throw new Error("GROQ_API_KEY is not configured")
     }
+
+    console.log(`[Resume Parser] Sending to Groq AI for parsing (${usedOCR ? 'OCR text' : 'direct text'})...`)
 
     const response = await fetch(GROQ_API_URL, {
         method: "POST",
@@ -137,7 +291,7 @@ export async function parseResume(pdfBuffer: Buffer): Promise<ParsedResume> {
                 { role: "system", content: SYSTEM_PROMPT },
                 {
                     role: "user",
-                    content: `Parse this resume text and extract structured data as JSON:\n\n${rawText.slice(0, 8000)}`,
+                    content: `Resume text:\n\n${rawText.slice(0, 8000)}`,
                 },
             ],
             temperature: 0.1,
@@ -173,9 +327,16 @@ export async function parseResume(pdfBuffer: Buffer): Promise<ParsedResume> {
         throw new Error("AI returned invalid JSON")
     }
 
+    console.log("[Resume Parser] ✅ Successfully parsed resume data")
+
     // Step 4: Validate and return structured data
     return {
+        name: typeof parsed.name === "string" ? parsed.name : null,
+        email: typeof parsed.email === "string" ? parsed.email : null,
+        phone: typeof parsed.phone === "string" ? parsed.phone : null,
+        location: typeof parsed.location === "string" ? parsed.location : null,
         careerObjective: typeof parsed.careerObjective === "string" ? parsed.careerObjective : "",
+        skills: Array.isArray(parsed.skills) ? parsed.skills.map(String).filter(Boolean) : [],
         skillGroups: Array.isArray(parsed.skillGroups)
             ? parsed.skillGroups
                 .filter((g: any) => g.category && Array.isArray(g.skills))
@@ -203,11 +364,14 @@ export async function parseResume(pdfBuffer: Buffer): Promise<ParsedResume> {
             : [],
         experience: Array.isArray(parsed.experience)
             ? parsed.experience.map((e: any) => ({
-                title: String(e.title || ""),
+                title: String(e.role || e.title || ""),
                 company: String(e.company || ""),
                 duration: String(e.duration || ""),
                 description: String(e.description || ""),
             }))
+            : [],
+        certifications: Array.isArray(parsed.certifications)
+            ? parsed.certifications.map(String).filter(Boolean)
             : [],
         rawText: rawText.slice(0, 10000),
     }
