@@ -193,10 +193,46 @@ async function performAnalysis(
         ]);
 
         // ── 5. LLM Analysis ──────────────────────────────────────────────
-        const [architectureResult, routesResult] = await Promise.all([
-            analyzeArchitecture(fileTree, techStack, keyFileContents),
-            analyzeRoutes(keyFileContents, fileTree, techStack),
-        ]);
+        let architectureResult;
+        let routesResult;
+
+        try {
+            [architectureResult, routesResult] = await Promise.all([
+                analyzeArchitecture(fileTree, techStack, keyFileContents),
+                analyzeRoutes(keyFileContents, fileTree, techStack),
+            ]);
+        } catch (llmError: any) {
+            console.error("[/api/analyze] LLM Analysis failed:", llmError);
+
+            // Provide fallback analysis if LLM fails
+            architectureResult = {
+                overallFlow: "Unable to generate architecture analysis. The repository structure has been saved and can be analyzed later.",
+                architectureJson: {
+                    nodes: [
+                        { id: "repo", label: `${owner}/${repo}`, type: "backend" as const }
+                    ],
+                    edges: [],
+                    notes: ["LLM analysis unavailable. Please check API keys and try again."]
+                }
+            };
+
+            routesResult = [
+                {
+                    path: "/",
+                    method: "PAGE",
+                    functionality: "Repository analysis pending. LLM service unavailable.",
+                    contribution: "Main entry point",
+                    lifecycleRole: "UI Rendering"
+                }
+            ];
+
+            // Log the specific error for debugging
+            console.error("[/api/analyze] LLM Error Details:", {
+                message: llmError.message,
+                stack: llmError.stack?.slice(0, 500),
+                name: llmError.name
+            });
+        }
 
         console.log("TECH STACK PAYLOAD:", JSON.stringify(techStack, null, 2));
 
@@ -274,6 +310,17 @@ async function performAnalysis(
     } catch (err: unknown) {
         console.error("[/api/analyze] Error:", err);
 
+        // Enhanced error logging
+        if (err && typeof err === 'object') {
+            console.error("[/api/analyze] Error details:", {
+                message: (err as any).message,
+                name: (err as any).name,
+                stack: (err as any).stack?.slice(0, 500),
+                code: (err as any).code,
+                statusCode: (err as any).statusCode,
+            });
+        }
+
         // Handle GitHub rate limiting
         if (err && typeof err === "object" && "status" in err) {
             const status = (err as { status: number }).status;
@@ -293,13 +340,27 @@ async function performAnalysis(
 
         const message = err instanceof Error ? err.message : "An unknown error occurred.";
 
-        // Handle Groq token limit exhausted
-        if (message.includes("429") || message.includes("RateLimitExhausted")) {
-            console.warn("[/api/analyze] 🔒 Groq daily token limit exhausted — returning rateLimitExceeded.");
-            return NextResponse.json({ rateLimitExceeded: true }, { status: 402 });
+        // Handle Bedrock/Gemini errors
+        if (message.includes("bedrock") || message.includes("Bedrock")) {
+            console.error("[/api/analyze] 🔒 AWS Bedrock error - check IAM permissions");
+            return NextResponse.json({
+                error: "AI analysis service unavailable. Please check AWS Bedrock permissions.",
+                details: message
+            }, { status: 503 });
         }
 
-        return NextResponse.json({ error: `Analysis failed: ${message}` }, { status: 500 });
+        if (message.includes("gemini") || message.includes("Gemini") || message.includes("API key")) {
+            console.error("[/api/analyze] 🔒 Gemini API error - check API key");
+            return NextResponse.json({
+                error: "AI analysis service unavailable. Please check Gemini API key.",
+                details: message
+            }, { status: 503 });
+        }
+
+        return NextResponse.json({
+            error: `Analysis failed: ${message}`,
+            hint: "Check CloudWatch logs for details"
+        }, { status: 500 });
     }
 }
 

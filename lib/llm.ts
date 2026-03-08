@@ -78,6 +78,24 @@ async function callBedrock(systemPrompt: string, userPrompt: string, maxTokens: 
         return responseBody.content[0].text;
     } catch (error: any) {
         console.error("[Bedrock] Error:", error);
+
+        // Log detailed error information
+        console.error("[Bedrock] Error details:", {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            statusCode: error.$metadata?.httpStatusCode,
+        });
+
+        // Provide helpful error messages
+        if (error.name === 'AccessDeniedException') {
+            throw new Error(`Bedrock Access Denied: Add AmazonBedrockFullAccess to Amplify service role`);
+        }
+
+        if (error.name === 'ResourceNotFoundException') {
+            throw new Error(`Bedrock Model Not Found in ${process.env.GITGO_AWS_REGION || 'us-east-1'}`);
+        }
+
         throw new Error(`Bedrock API error: ${error.message}`);
     }
 }
@@ -101,6 +119,23 @@ async function callGemini(systemPrompt: string, userPrompt: string, maxTokens: n
         return response.text();
     } catch (error: any) {
         console.error("[Gemini] Error:", error);
+
+        // Log detailed error
+        console.error("[Gemini] Error details:", {
+            name: error.name,
+            message: error.message,
+            status: error.status,
+        });
+
+        // Provide helpful error messages
+        if (error.message?.includes('API key')) {
+            throw new Error(`Gemini API Key Invalid: Check GEMINI_API_KEY environment variable`);
+        }
+
+        if (error.status === 429) {
+            throw new Error(`Gemini Rate Limit: Free tier limit exceeded. Try again later.`);
+        }
+
         throw new Error(`Gemini API error: ${error.message}`);
     }
 }
