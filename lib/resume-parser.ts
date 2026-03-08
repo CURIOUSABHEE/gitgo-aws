@@ -192,7 +192,8 @@ async function extractTextWithOCR(pdfBuffer: Buffer): Promise<string> {
                 await page.render({
                     canvasContext: context as any,
                     viewport: viewport,
-                }).promise
+                    canvas: canvas as any,
+                } as any).promise
 
                 // Convert canvas to buffer
                 const imageBuffer = canvas.toBuffer("image/png")

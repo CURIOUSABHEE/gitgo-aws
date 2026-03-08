@@ -10,23 +10,18 @@ import { connectDB } from "@/lib/mongodb";
 import { RepositoryAnalysis } from "@/models/RepositoryAnalysis";
 import { RepoTracker } from "@/lib/repo-tracker";
 
-interface RouteContext {
-    params: {
-        repoUrl: string;
-    };
-}
-
 export async function GET(
     req: NextRequest,
-    context: RouteContext
+    { params }: { params: Promise<{ repoUrl: string }> }
 ) {
+    const { repoUrl: rawRepoUrl } = await params
     const session = await auth();
     if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
-        const repoUrl = decodeURIComponent(context.params.repoUrl);
+        const repoUrl = decodeURIComponent(rawRepoUrl);
         
         await connectDB();
         const repo = await RepositoryAnalysis.findOne({ repoUrl })
@@ -53,15 +48,16 @@ export async function GET(
 
 export async function DELETE(
     req: NextRequest,
-    context: RouteContext
+    { params }: { params: Promise<{ repoUrl: string }> }
 ) {
+    const { repoUrl: rawRepoUrl } = await params
     const session = await auth();
     if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
-        const repoUrl = decodeURIComponent(context.params.repoUrl);
+        const repoUrl = decodeURIComponent(rawRepoUrl);
         
         const success = await RepoTracker.resetRepoTracking(repoUrl);
 

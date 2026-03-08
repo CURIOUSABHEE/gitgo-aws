@@ -288,7 +288,7 @@ export default function GsocPage() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-foreground">
-                Google Summer of Code 2024
+                Google Summer of Code 2026
               </h2>
               <p className="text-sm text-muted-foreground">
                 Explore {allOrgs.length} participating organizations and their tech stacks

@@ -29,7 +29,7 @@ export function Footer() {
   }, [])
 
   return (
-    <footer ref={footerRef} className="border-t border-border/50 bg-secondary/30 px-6 py-16">
+    <footer ref={footerRef} className="border-t border-border/50 bg-secondary/30 px-6 py-16 relative z-10" style={{ opacity: 1 }}>
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
           <div className="flex flex-col items-center gap-3 md:items-start">

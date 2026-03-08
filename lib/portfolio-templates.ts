@@ -1,6 +1,6 @@
 // Portfolio Template System
 
-export type TemplateType = "minimal" | "creative" | "professional" | "student"
+export type TemplateType = "minimal" | "creative" | "professional" | "student" | "modern"
 export type ColorTheme = "midnight" | "ocean" | "forest" | "sunset" | "lavender" | "monochrome"
 
 export interface PortfolioTheme {
@@ -161,6 +161,20 @@ export const templates: Record<TemplateType, TemplateConfig> = {
       "Skill progression display",
       "Social media integration",
       "Mobile-first approach",
+    ],
+  },
+  modern: {
+    id: "modern",
+    name: "Modern Developer",
+    description: "Contemporary design with glassmorphism and smooth animations",
+    preview: "Modern layout with glass effects and smooth transitions",
+    features: [
+      "Glassmorphism effects",
+      "Smooth animations",
+      "Gradient backgrounds",
+      "Card-based layout",
+      "Responsive design",
+      "Interactive elements",
     ],
   },
 }

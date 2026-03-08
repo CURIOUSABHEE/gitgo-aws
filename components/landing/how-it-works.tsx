@@ -66,9 +66,9 @@ export function HowItWorks() {
   }, [])
 
   return (
-    <section ref={sectionRef} id="how-it-works" className="relative px-6 py-32">
+    <section ref={sectionRef} id="how-it-works" className="relative z-10 px-6 py-32" style={{ opacity: 1 }}>
       <div className="mx-auto max-w-6xl">
-        <div ref={headerRef} className="mb-20 text-center">
+        <div ref={headerRef} className="mb-20 text-center opacity-100">
           <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
             How It Works
           </p>
@@ -77,7 +77,7 @@ export function HowItWorks() {
           </h2>
         </div>
 
-        <div ref={stepsRef} className="grid gap-12 md:grid-cols-3">
+        <div ref={stepsRef} className="grid gap-12 md:grid-cols-3 opacity-100">
           {steps.map((item, i) => (
             <div key={item.step} className="relative text-center">
               {i < steps.length - 1 && (

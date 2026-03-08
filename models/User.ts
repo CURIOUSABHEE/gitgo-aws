@@ -66,6 +66,10 @@ export interface IUser extends Document {
   }>
   linkedinSkills?: string[]
   linkedinLastSynced?: Date
+  linkedin?: {
+    url: string
+    fetchedAt: Date
+  }
   // Subscription fields
   subscriptionPlan?: "free" | "starter" | "pro" | "enterprise"
   subscriptionStatus?: "active" | "cancelled" | "expired" | "trial"
@@ -166,6 +170,10 @@ const UserSchema = new Schema<IUser>(
     ],
     linkedinSkills: [{ type: String }],
     linkedinLastSynced: { type: Date },
+    linkedin: {
+      url: { type: String },
+      fetchedAt: { type: Date },
+    },
     // Subscription fields
     subscriptionPlan: {
       type: String,

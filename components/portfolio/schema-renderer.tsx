@@ -32,7 +32,7 @@ export function SchemaRenderer({
     if (!section.visible) return null
 
     const commonProps = {
-      data: section.data,
+      data: section.data as any,
       theme,
       templateId,
       editable,

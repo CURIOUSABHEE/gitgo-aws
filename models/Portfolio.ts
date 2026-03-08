@@ -3,10 +3,27 @@ import mongoose, { Schema, Document, Model } from "mongoose"
 export interface IPortfolio extends Document {
   userId: string
   username: string
-  subdomain: string // e.g., "johndoe" for johndoe.gitgo.dev
+  subdomain: string
   isPublished: boolean
   customDomain?: string
-  theme: "minimal" | "creative" | "professional" | "student"
+  theme: "minimal" | "creative" | "professional" | "student" | "modern"
+
+  // Profile data from MongoDB
+  profile: {
+    name: string
+    bio: string
+    tagline: string
+    avatar?: string
+    location?: string
+    email?: string
+  }
+
+  // Selected GitHub repos to display
+  selectedRepos: Array<{
+    repoId: number
+    repoName: string
+    repoFullName: string
+  }>
 
   sections: {
     about: boolean
@@ -21,6 +38,7 @@ export interface IPortfolio extends Document {
     linkedin?: string
     twitter?: string
     website?: string
+    email?: string
   }
   analytics: {
     views: number
@@ -40,9 +58,24 @@ const PortfolioSchema = new Schema<IPortfolio>(
     customDomain: { type: String },
     theme: {
       type: String,
-      enum: ["minimal", "creative", "professional", "student"],
+      enum: ["minimal", "creative", "professional", "student", "modern"],
       default: "minimal",
     },
+    profile: {
+      name: { type: String, default: "" },
+      bio: { type: String, default: "" },
+      tagline: { type: String, default: "" },
+      avatar: { type: String },
+      location: { type: String },
+      email: { type: String },
+    },
+    selectedRepos: [
+      {
+        repoId: { type: Number, required: true },
+        repoName: { type: String, required: true },
+        repoFullName: { type: String, required: true },
+      },
+    ],
     sections: {
       about: { type: Boolean, default: true },
       skills: { type: Boolean, default: true },
@@ -56,6 +89,7 @@ const PortfolioSchema = new Schema<IPortfolio>(
       linkedin: { type: String },
       twitter: { type: String },
       website: { type: String },
+      email: { type: String },
     },
     analytics: {
       views: { type: Number, default: 0 },

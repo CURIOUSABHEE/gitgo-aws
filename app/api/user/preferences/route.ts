@@ -15,7 +15,7 @@ export async function GET() {
     await connectDB()
     let preferences = await UserPreferences.findOne({ 
       userId: session.user.githubId 
-    }).lean()
+    }).lean() as any
 
     // Create default preferences if none exist
     if (!preferences) {
@@ -32,7 +32,7 @@ export async function GET() {
           mentions: true,
           milestones: true,
         },
-      })
+      }).then(doc => doc.toObject())
     }
 
     return NextResponse.json({ preferences })

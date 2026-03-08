@@ -88,9 +88,14 @@ export function Features() {
   }, [])
 
   return (
-    <section ref={sectionRef} id="features" className="relative px-6 py-32">
+    <section 
+      ref={sectionRef} 
+      id="features" 
+      className="relative z-10 px-6 py-32"
+      style={{ opacity: 1 }}
+    >
       <div className="mx-auto max-w-7xl">
-        <div ref={headerRef} className="mb-20 text-center">
+        <div ref={headerRef} className="mb-20 text-center opacity-100">
           <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
             Features
           </p>
@@ -102,7 +107,7 @@ export function Features() {
           </p>
         </div>
 
-        <div ref={cardsRef} className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div ref={cardsRef} className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 opacity-100">
           {features.map((feature) => (
             <div
               key={feature.title}

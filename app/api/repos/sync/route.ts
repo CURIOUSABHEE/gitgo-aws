@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     if (includeExternalSources) {
       console.log(`[Sync] Step 1.5: Fetching from external sources`)
       const externalRepos = await fetchFromAllExternalSources(githubToken)
-      repos = [...repos, ...externalRepos]
+      repos = [...repos, ...externalRepos] as typeof repos
       console.log(`[Sync] Total repos after external sources: ${repos.length}`)
     }
 

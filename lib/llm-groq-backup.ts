@@ -440,7 +440,7 @@ Rules:
 
 Return ONLY the JSON array.`;
 
-    const response = await callGroqWithErrorHandling(groqMain, {
+    const response = await callGroqWithErrorHandling(getGroqMain(), {
         model: MODEL,
         max_tokens: 3000,
         temperature: 0.2,
@@ -792,7 +792,7 @@ Output ONLY this JSON structure, nothing else:
 }`;
 
     // Try each match client in order — if all 429, fall through to groqMain as last resort.
-    const clientsToTry = [groqMatch1, groqMatch2, groqMatch3, groqMain];
+    const clientsToTry = [groqMatch1, groqMatch2, groqMatch3, groqMain].filter((g): g is Groq => g !== null);
     const params = {
         model: MODEL,
         max_tokens: 2000,

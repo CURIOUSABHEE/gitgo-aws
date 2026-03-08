@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Parse fileTree if it's stored as string
-    let fileTree = analysis.fileTree;
+    let fileTree: any = analysis.fileTree;
     if (typeof fileTree === 'string') {
         try {
             fileTree = JSON.parse(fileTree);

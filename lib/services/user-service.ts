@@ -367,9 +367,32 @@ export class UserService {
     return user.skills
   }
 
-  static async getTechnologyMap(githubId: string) {
-    // Try cache first
-    const cached = await getCached(`user:techmap:${githubId}`)
+  static async getTechnologyMap(githubId: string): Promise<Array<{
+    technology: string
+    projects: Array<{
+      repoName: string
+      repoId: number
+      isPrimary: boolean
+      lastUsed: Date
+    }>
+    totalProjects: number
+    firstUsed: Date
+    lastUsed: Date
+  }>> {
+    type TechMapItem = {
+      technology: string
+      projects: Array<{
+        repoName: string
+        repoId: number
+        isPrimary: boolean
+        lastUsed: Date
+      }>
+      totalProjects: number
+      firstUsed: Date
+      lastUsed: Date
+    }
+    
+    const cached = await getCached<TechMapItem[]>(`user:techmap:${githubId}`)
     if (cached) return cached
 
     // Fallback to database
