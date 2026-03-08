@@ -200,7 +200,7 @@ function IssuesPanel({ repoFullName }: { repoFullName: string }) {
 function RepoCard({ repo, index }: { repo: RecommendedRepo; index: number }) {
     const [expanded, setExpanded] = useState(false)
     const [showIssues, setShowIssues] = useState(false)
-    const analyzeUrl = `/dashboard/analyze?url=${encodeURIComponent(`https://github.com/${repo.full_name}`)}`
+    const analyzeUrl = `/dashboard/analyze?repoUrl=${encodeURIComponent(`https://github.com/${repo.full_name}`)}`
     const langColor = LANGUAGE_COLORS[repo.language] || "bg-gray-500"
 
     return (
