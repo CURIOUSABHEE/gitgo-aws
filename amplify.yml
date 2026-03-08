@@ -3,8 +3,6 @@ frontend:
   phases:
     preBuild:
       commands:
-        # Change to source_code directory
-        - cd source_code
         # Install dependencies
         - npm ci
         
@@ -23,19 +21,18 @@ frontend:
         - echo "GITGO_AWS_REGION=$GITGO_AWS_REGION" >> .env.production
         - echo "GITGO_EXECUTION_MODE=$GITGO_EXECUTION_MODE" >> .env.production
         - echo "GITGO_S3_BUCKET_NAME=$GITGO_S3_BUCKET_NAME" >> .env.production
-        - echo "API_GATEWAY_URL=$API_GATEWAY_URL" >> .env.production
+        - echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env.production
         
     build:
       commands:
-        - cd source_code
         - npm run build
         
   artifacts:
-    baseDirectory: source_code/.next
+    baseDirectory: .next
     files:
       - '**/*'
       
   cache:
     paths:
-      - source_code/node_modules/**/*
-      - source_code/.next/cache/**/*
+      - node_modules/**/*
+      - .next/cache/**/*
