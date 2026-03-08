@@ -7,6 +7,8 @@ import type { RepositoryData, TrendingSuccessResponse, TrendingErrorResponse } f
 const CACHE_KEY = "trending:repositories"
 const CACHE_TTL = 3600 // 1 hour in seconds
 
+export const revalidate = 3600; // Native Next.js App Router Cache (1 hour)
+
 export async function GET() {
   try {
     const redis = getRedisClient()
