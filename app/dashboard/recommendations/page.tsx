@@ -398,6 +398,7 @@ export default function RecommendationsPage() {
             const reader = response.body.getReader()
             const decoder = new TextDecoder()
             let buffer = ""
+            let streamFinishedSuccessfully = false
 
             while (true) {
                 const { value, done } = await reader.read()
@@ -420,6 +421,7 @@ export default function RecommendationsPage() {
                             setMeta(event.meta)
                             setLoading(false)
                             setCurrentPhase(null)
+                            streamFinishedSuccessfully = true
                         } else if (event.type === "error") {
                             throw new Error(event.error || "Unknown error")
                         }
@@ -430,6 +432,10 @@ export default function RecommendationsPage() {
                         // ignore JSON parse errors on partial chunks
                     }
                 }
+            }
+            
+            if (!streamFinishedSuccessfully) {
+                 throw new Error("Connection closed unexpectedly before finishing recommendations. Please try again.")
             }
         } catch (err: any) {
             setError(err.message)

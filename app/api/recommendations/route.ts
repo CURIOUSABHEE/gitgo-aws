@@ -13,6 +13,8 @@ import { getRepoMetadata, fetchPublicGitHubProfile, fetchRepoReadme, fetchRepoCo
 import { UserService } from "@/lib/services/user-service"
 import { RecommendationRepository } from "@/lib/db/RecommendationRepository"
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 /**
  * Builds valid GitHub repository search strings from domain analysis output.
  * SAFE: only uses language:, topic:, stars:>, pushed:>, is:unarchived — no label: (invalid for repos)
@@ -74,6 +76,11 @@ export async function POST(req: NextRequest) {
     const stream = new ReadableStream({
         async start(controller) {
             const send = (data: object) => controller.enqueue(sseChunk(data))
+            const closeWithError = async (msg: string) => {
+                send({ type: "error", error: msg })
+                await sleep(100)
+                try { controller.close() } catch { /* ignore */ }
+            }
 
             try {
                 // Note: AWS Amplify handles Lambda execution automatically
@@ -82,8 +89,7 @@ export async function POST(req: NextRequest) {
                 const session = await getServerSession(authOptions)
                 // In test mode, we might not need a strict matching githubId if we are just testing
                 if (!session?.user?.githubId && !testGithubUrl) {
-                    send({ type: "error", error: "Unauthorized" })
-                    controller.close()
+                    await closeWithError("Unauthorized")
                     return
                 }
 
@@ -92,8 +98,7 @@ export async function POST(req: NextRequest) {
                 // Fallback to process.env.GITHUB_TOKEN if session token isn't available
                 const token = (session as any)?.accessToken || process.env.GITHUB_TOKEN
                 if (!token) {
-                    send({ type: "error", error: "No GitHub token available. Please set GITHUB_TOKEN in your environment variables." })
-                    controller.close()
+                    await closeWithError("No GitHub token available. Please set GITHUB_TOKEN in your environment variables.")
                     return
                 }
 
@@ -128,22 +133,19 @@ export async function POST(req: NextRequest) {
                             testUsername: username
                         }
                     } catch (err: any) {
-                        send({ type: "error", error: `Could not fetch GitHub profile for "${extractUsername(testGithubUrl)}": ${err.message}` })
-                        controller.close()
+                        await closeWithError(`Could not fetch GitHub profile for "${extractUsername(testGithubUrl)}": ${err.message}`)
                         return
                     }
                 }
                 // ─── PATH B: Logged-in User — pull from MongoDB ───────────────────────
                 else {
                     if (!session?.user?.githubId) {
-                        send({ type: "error", error: "Unauthorized: You must be logged in to view your profile matches." })
-                        controller.close()
+                        await closeWithError("Unauthorized: You must be logged in to view your profile matches.")
                         return
                     }
                     user = await User.findOne({ githubId: String(session.user.githubId) }).lean()
                     if (!user) {
-                        send({ type: "error", error: "User not found" })
-                        controller.close()
+                        await closeWithError("User not found")
                         return
                     }
 
@@ -163,8 +165,7 @@ export async function POST(req: NextRequest) {
                             // Re-fetch
                             user = await User.findOne({ githubId: String(session.user.githubId) }).lean()
                             if (!user) {
-                                send({ type: "error", error: "User not found after sync" })
-                                controller.close()
+                                await closeWithError("User not found after sync")
                                 return
                             }
                             allUserRepos = await Repository.find(
@@ -220,15 +221,14 @@ export async function POST(req: NextRequest) {
                     domainProfile = await analyzeProfileForDomains(userProfile)
                 } catch (err) {
                     console.error("[Recommendations] Phase 1 failed:", err)
-                    send({ type: "error", error: "Profile analysis failed. Try again." })
-                    controller.close()
+                    await closeWithError("Profile analysis failed. Try again.")
                     return
                 }
 
                 console.log(`[Recommendations] Level: ${domainProfile.experienceLevel}, Domains: ${domainProfile.domains.map(d => d.label).join(" | ")}`)
 
                 // ─── Phase 2: LLM Curates Repositories ───
-                send({ type: "phase", phase: "curating" })
+                send({ type: "phase", phase: "github" })
                 console.log(`[Recommendations] Phase 2: LLM Curating Repositories...`)
 
                 let categories: any[] = []
@@ -236,19 +236,17 @@ export async function POST(req: NextRequest) {
                     categories = await generateExpertCuratedRepos(domainProfile)
                 } catch (err) {
                     console.error("[Recommendations] Phase 2 failed:", err)
-                    send({ type: "error", error: "Curriculum generation failed. Please try again." })
-                    controller.close()
+                    await closeWithError("Curriculum generation failed. Please try again.")
                     return
                 }
 
                 if (!categories || categories.length === 0) {
-                    send({ type: "error", error: "Failed to generate curriculum. Please try again." })
-                    controller.close()
+                    await closeWithError("Failed to generate curriculum. Please try again.")
                     return
                 }
 
                 // ─── Phase 3: Hydrate Live GitHub Metadata ───
-                send({ type: "phase", phase: "hydrating" })
+                send({ type: "phase", phase: "personalizing" })
                 console.log("[Recommendations] Phase 3: Hydrating with live GitHub data...")
 
                 const finalCategories: any[] = []
@@ -285,8 +283,7 @@ export async function POST(req: NextRequest) {
                 }
 
                 if (finalCategories.length === 0) {
-                    send({ type: "error", error: "All recommended repositories failed validation. Please try again." })
-                    controller.close()
+                    await closeWithError("All recommended repositories failed validation. Please try again.")
                     return
                 }
 
@@ -330,7 +327,8 @@ export async function POST(req: NextRequest) {
             } catch (error: any) {
                 console.error("Recommendations Error:", error)
                 try {
-                    controller.enqueue(sseChunk({ type: "error", error: error.message || "Failed" }))
+                    send({ type: "error", error: error.message || "Failed" })
+                    await sleep(100)
                 } catch { /* stream may already be closed */ }
             } finally {
                 try { controller.close() } catch { /* ignore double-close */ }

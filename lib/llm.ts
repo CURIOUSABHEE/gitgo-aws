@@ -15,6 +15,11 @@ const groqKeys = [
     process.env.GROQ_API_KEY_1,
     process.env.GROQ_API_KEY_2,
     process.env.GROQ_API_KEY_3,
+    process.env.GROQ_API_KEY_ARCHI_1,
+    process.env.GROQ_API_KEY_ARCHI_2,
+    process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_1,
+    process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_2,
+    process.env.GROQ_API_KEY_FOR_OPEN_SOUCE_FINDING_3,
 ].filter(Boolean) as string[];
 
 let currentGroqKeyIndex = 0;
