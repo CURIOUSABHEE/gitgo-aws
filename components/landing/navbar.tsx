@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Github, Terminal } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,7 @@ import gsap from "gsap"
 export function Navbar() {
   const navRef = useRef<HTMLElement>(null)
   const [scrolled, setScrolled] = useState(false)
+  const { status } = useSession()
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -68,15 +70,27 @@ export function Navbar() {
           </Link>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-            <Link href="/onboarding">Sign In</Link>
-          </Button>
-          <Button size="sm" className="bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all hover:scale-105 hover:shadow-lg hover:shadow-primary/30" asChild>
-            <Link href="/onboarding">
-              <Github className="mr-2 h-4 w-4" />
-              Get Started
-            </Link>
-          </Button>
+          {status === "loading" ? (
+            <div className="h-9 w-24 animate-pulse rounded-md bg-muted"></div>
+          ) : status === "authenticated" ? (
+            <Button size="sm" className="bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all hover:scale-105 hover:shadow-lg hover:shadow-primary/30" asChild>
+              <Link href="/dashboard">
+                Go to Dashboard
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
+                <Link href="/onboarding">Sign In</Link>
+              </Button>
+              <Button size="sm" className="bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all hover:scale-105 hover:shadow-lg hover:shadow-primary/30" asChild>
+                <Link href="/onboarding">
+                  <Github className="mr-2 h-4 w-4" />
+                  Get Started
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
       </nav>
     </header>

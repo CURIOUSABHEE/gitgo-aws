@@ -42,6 +42,7 @@ export const authOptions: NextAuthOptions = {
         
         if (account.provider === "github") {
           token.githubId = (profile as any)?.id
+          token.githubLogin = (profile as any)?.login
         }
         
         if (account.provider === "linkedin") {
@@ -55,6 +56,7 @@ export const authOptions: NextAuthOptions = {
       session.accessToken = token.accessToken as string
       session.refreshToken = token.refreshToken as string
       session.user.githubId = token.githubId as string
+      session.user.githubLogin = token.githubLogin as string
       session.user.linkedinId = token.linkedinId as string
       return session
     },

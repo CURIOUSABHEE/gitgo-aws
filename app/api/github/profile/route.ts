@@ -23,7 +23,7 @@ export async function GET() {
     // If not in cache/DB or data is stale, sync from GitHub
     if (!userBasic || !repoList) {
       // Sync user data from GitHub to MongoDB
-      const user = await UserService.syncUserFromGitHub(
+      const { user, repos } = await UserService.syncUserFromGitHub(
         session.accessToken,
         githubId
       )
@@ -32,7 +32,8 @@ export async function GET() {
       await UserService.syncRepositories(
         session.accessToken,
         user._id.toString(),
-        githubId
+        githubId,
+        repos
       )
 
       // Fetch from cache (now populated)

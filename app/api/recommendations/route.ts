@@ -159,8 +159,8 @@ export async function POST(req: NextRequest) {
                         console.log(`[Recommendations] Auto-syncing GitHub data for "${user.name || user.login}"...`)
                         try {
                             await UserService.invalidateUserCache(user.githubId)
-                            const updatedUser = await UserService.syncUserFromGitHub(token as string, user.githubId)
-                            await UserService.syncRepositories(token as string, updatedUser._id.toString(), user.githubId)
+                            const { user: updatedUser, repos } = await UserService.syncUserFromGitHub(token as string, user.githubId)
+                            await UserService.syncRepositories(token as string, updatedUser._id.toString(), user.githubId, repos)
 
                             // Re-fetch
                             user = await User.findOne({ githubId: String(session.user.githubId) }).lean()

@@ -51,7 +51,10 @@ export function useGitHub() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!session?.accessToken) return
+      if (!session?.accessToken) {
+        setProfile(null)
+        return
+      }
 
       setLoading(true)
       setError(null)

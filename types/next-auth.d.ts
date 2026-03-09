@@ -6,6 +6,7 @@ declare module "next-auth" {
     refreshToken?: string
     user: {
       githubId?: string
+      githubLogin?: string
       linkedinId?: string
     } & DefaultSession["user"]
   }
@@ -17,6 +18,7 @@ declare module "next-auth/jwt" {
     refreshToken?: string
     expiresAt?: number
     githubId?: string
+    githubLogin?: string
     linkedinId?: string
   }
 }

@@ -20,7 +20,7 @@ export async function POST() {
     await UserService.invalidateUserCache(githubId)
 
     // Sync fresh data from GitHub
-    const user = await UserService.syncUserFromGitHub(
+    const { user, repos } = await UserService.syncUserFromGitHub(
       session.accessToken,
       githubId
     )
@@ -28,7 +28,8 @@ export async function POST() {
     await UserService.syncRepositories(
       session.accessToken,
       user._id.toString(),
-      githubId
+      githubId,
+      repos
     )
 
     // Fetch updated data

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { signOut } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import {
   Terminal,
   LayoutDashboard,
@@ -110,17 +110,18 @@ const filters = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const { profile } = useGitHub()
 
-  const userName = profile?.user.name || "User"
-  const userLogin = profile?.user.login || "user"
-  const userAvatar = profile?.user.avatar_url
+  const userName = profile?.user.name || session?.user?.name || "User"
+  const userLogin = profile?.user.login || (session?.user as any)?.githubLogin || "user"
+  const userAvatar = profile?.user.avatar_url || session?.user?.image
 
   // Generate initials from name or username detereministically
-  const initials = profile?.user.name
-    ? profile.user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
-    : profile?.user.login
-      ? profile.user.login.slice(0, 2).toUpperCase()
+  const initials = userName !== "User"
+    ? userName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+    : userLogin !== "user"
+      ? userLogin.slice(0, 2).toUpperCase()
       : "US"
 
   // Get languages from profile (same as My Projects page)

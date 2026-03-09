@@ -32,12 +32,15 @@ export class UserService {
   static async syncUserFromGitHub(
     accessToken: string,
     githubId: string
-  ): Promise<IUser> {
+  ): Promise<{ user: IUser; repos: GitHubRepo[] }> {
     await connectDB()
 
     const github = new GitHubAPI(accessToken)
-    const githubUser = await github.getUser()
-    const repos = await github.getRepos()
+    // Parallelize user and repo fetching to halve waiting time
+    const [githubUser, repos] = await Promise.all([
+      github.getUser(),
+      github.getRepos(),
+    ])
 
     // Fetch email if not public
     let email = githubUser.email
@@ -185,18 +188,19 @@ export class UserService {
     await setCached(`user:languages:${githubId}`, languages, CACHE_TTL.USER_BASIC)
     await setCached(`user:skills:${githubId}`, skills, CACHE_TTL.USER_BASIC)
 
-    return user
+    return { user, repos }
   }
 
   static async syncRepositories(
     accessToken: string,
     userId: string,
-    githubId: string
+    githubId: string,
+    prefetchedRepos?: GitHubRepo[]
   ): Promise<void> {
     await connectDB()
 
     const github = new GitHubAPI(accessToken)
-    const repos = await github.getRepos()
+    const repos = prefetchedRepos ? prefetchedRepos : await github.getRepos()
 
     // Convert userId string to ObjectId
     const userObjectId = new mongoose.Types.ObjectId(userId)

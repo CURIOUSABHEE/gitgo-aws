@@ -154,17 +154,14 @@ export async function analyzeArchitecture(
         .map((f) => `\n\n=== FILE: ${f.path} ===\n${f.content}`)
         .join("");
 
-    const systemPrompt = `You are an elite software architect specializing in system architecture analysis. Your task is to analyze a GitHub repository and generate a clear, accurate system architecture diagram.
+    const systemPrompt = `You are a Principal Cloud Architect and Systems Engineer evaluating a new codebase. Your ONLY purpose is to analyze the structural topology of the GitHub repository and output a perfectly formatted JSON architecture map.
 
-CRITICAL RULES:
-- Only include components that ACTUALLY EXIST in the repository
-- Do NOT hallucinate services, databases, or infrastructure
-- Use ACTUAL names from the codebase
-- Keep architecture at SERVICE LEVEL, not file level
-- Maximum 12-15 nodes for clarity
-- Avoid duplicate nodes
-
-Return ONLY valid JSON — no markdown, no commentary, no explanation outside the JSON.`;
+CRITICAL DIRECTIVES:
+1. ONLY return valid JSON. Do NOT wrap the JSON in \`\`\`json markdown blocks. Absolutely no conversational filler.
+2. ONLY include components that explicitly exist in the provided repository files. 
+3. DO NOT hallucinate external SaaS services, dummy databases, or infrastructure unless there is hard evidence (e.g., actual SDK imports, DB connection strings).
+4. Aggregate at the SERVICE level. A frontend Next.js app is one node. An Express backend is one node. A Postgres database is one node. Do not create nodes for individual files or minor utilities.
+5. Limit the architecture diagram to a maximum of 15 nodes to maintain readability.`;
 
     const userPrompt = `Analyze this GitHub repository and create a system architecture diagram following these exact steps:
 
@@ -294,32 +291,24 @@ ${truncate(keyFilesStr, 30000)}
 
 ## OUTPUT FORMAT
 
-Return ONLY this JSON structure (no markdown, no explanation):
-\`\`\`json
+You MUST return the structure EXACTLY like this (NO markdown backticks around it):
 {
-  "overallFlow": "Brief 2-3 sentence description of the system architecture and data flow",
+  "overallFlow": "Concise 2-3 sentence overview of the architecture and primary data flow.",
   "architectureJson": {
     "nodes": [
-      {"id": "unique_id", "label": "Component Name", "type": "frontend|backend|service|database|external|infrastructure"}
+      {"id": "api_gateway", "label": "API Gateway", "type": "infrastructure"}
     ],
     "edges": [
-      {"from": "source_id", "to": "target_id", "label": "HTTP/REST|GraphQL|DB Query|Queue|SDK"}
+      {"from": "frontend_app", "to": "api_gateway", "label": "HTTP/REST"}
     ],
     "notes": [
-      "Architecture pattern: Monolith/Microservices/Serverless/etc",
-      "Key technologies: List main tech stack",
-      "Data flow: Describe how data moves through the system",
-      "Notable patterns: Any interesting architectural decisions"
+      "Key Database: PostgreSQL via Prisma",
+      "Event Bus: RabbitMQ for background jobs"
     ]
   }
 }
-\`\`\`
 
-REMEMBER: 
-- Service-level abstraction (not file-level)
-- Maximum 12-15 nodes
-- Only components that ACTUALLY exist
-- No hallucinations`;
+Remember: ONLY JSON output. No markdown wrappers. No explanations.`;
 
     const text = await callGroq(systemPrompt, userPrompt, 8000);
 
@@ -386,10 +375,14 @@ export async function analyzeRoutes(
         .slice(0, 60)
         .join("\n");
 
-    const systemPrompt = `You are an expert API documentation engineer. 
-Return ONLY a valid JSON array. No markdown, no explanation outside the JSON array.`;
+    const systemPrompt = `You are a Senior Backend Engineer extracting API endpoints, web pages, and application routes from a frontend and backend codebase. Your sole output must be a perfectly valid JSON array.
 
-    const userPrompt = `Analyze these project files and return a JSON ARRAY of ALL routes, pages, and endpoints.
+CRITICAL DIRECTIVES:
+1. ONLY return a valid JSON array. Do NOT wrap it in \`\`\`json markdown blocks. No conversational text whatsoever.
+2. Ensure you extract actual REST endpoints, Next.js page routes, Django URLs, Express endpoints, etc.
+3. If no routes are found, return exactly this: [{"path": "/", "method": "PAGE", "functionality": "Main entry point", "contribution": "Landing page", "lifecycleRole": "UI Rendering"}]`;
+
+    const userPrompt = `Analyze these project files and extract ALL routes, pages, and HTTP endpoints.
 
 ## Tech Stack
 ${formatTechStack(techStack)}
@@ -398,18 +391,16 @@ ${formatTechStack(techStack)}
 ${truncate(sourceStr, 25000)}
 
 ## App Directory Structure
-\`\`\`
 ${truncate(appDirFiles, 2000)}
-\`\`\`
 
-Each array item MUST have these exact keys:
-- "path": URL path
-- "method": HTTP method or "PAGE" for UI routes
-- "functionality": Plain English explanation (2-3 sentences)
-- "contribution": How this route contributes to the project (1-2 sentences)  
-- "lifecycleRole": ONE of: "Authentication", "Data Fetching", "CRUD Operation", "UI Rendering", "File Processing", "Third-party Integration", "Real-time", "Navigation", "Background Processing"
+Return EXACTLY a JSON array where each object has these string keys:
+- "path": The URL path (e.g. "/api/users" or "/dashboard")
+- "method": The HTTP method (GET, POST, etc.) or "PAGE" for UI routes
+- "functionality": A clear 2-sentence explanation of what the route does
+- "contribution": A 1-sentence explanation of its business value to the project
+- "lifecycleRole": MUST EXACTLY match ONE of: "Authentication", "Data Fetching", "CRUD Operation", "UI Rendering", "File Processing", "Third-party Integration", "Real-time", "Navigation", "Background Processing"
 
-Return ONLY the JSON array.`;
+OUTPUT ONLY THE JSON ARRAY. NO MARKDOWN. NO BACKTICKS.`;
 
     const text = await callGroq(systemPrompt, userPrompt, 3000);
 
@@ -625,16 +616,26 @@ Return JSON with: experienceLevel, hasOpenSourceContributions, contributionNotes
 export async function generateExpertCuratedRepos(
     domainProfile: UserDomainProfile
 ): Promise<RecommendationCategory[]> {
-    const systemPrompt = `You are a senior developer mentor with encyclopedic knowledge of GitHub repositories. Generate a curated list of 10 repositories per domain. Return ONLY valid JSON.`;
+    const systemPrompt = `You are a senior developer mentor with encyclopedic knowledge of GitHub repositories. Generate a curated list of 10 repositories per domain.
+
+CRITICAL RULES FOR REPOSITORY SELECTION:
+1. Do NOT recommend massive legacy software or overly complex monolithic codebases (e.g., linux, kubernetes, tensorflow, react, typescript).
+2. Recommend SIMPLE, clear, and focused repositories that are understandable for a single developer.
+3. Prioritize modern tools, distinct utilities, starter templates, or small-to-medium libraries.
+4. Repositories should typically be under 10,000 stars to avoid overwhelming enterprise codebases.
+5. Maximize the chances that the user can actually read the codebase and contribute within a single weekend.
+
+Return ONLY valid JSON.`;
 
     const userPrompt = `Generate repository recommendations for this developer.
 
 Experience Level: ${domainProfile.experienceLevel}
 Domains: ${JSON.stringify(domainProfile.domains)}
 
-For each domain, recommend EXACTLY 10 repositories with full_name, whyItFits, and whereToStart.
+For each domain, recommend EXACTLY 10 repositories.
+Ensure every single repository is relatively small, understandable, and actively welcoming smaller contributions. Do NOT suggest the most famous repository in the language.
 
-Return JSON: { "categories": [ { "domain": "...", "label": "...", "repos": [...] } ] }`;
+Return JSON EXACTLY in this format: { "categories": [ { "domain": "...", "label": "...", "repos": [ { "full_name": "owner/repo", "whyItFits": "...", "whereToStart": "..." } ] } ] }`;
 
     const text = await callGroq(systemPrompt, userPrompt, 5000);
 
